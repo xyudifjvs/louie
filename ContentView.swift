@@ -13,39 +13,43 @@ struct ContentView: View {
             if showSplash {
                 DarkSplashScreen()
                     .transition(.opacity)
+                    .zIndex(1)
             } else {
                 MainTabView() // Show the TabView after splash
+                    .transition(.opacity)
+                    .zIndex(0)
             }
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                withAnimation(.easeInOut(duration: 0.5)) {
+                withAnimation(.easeInOut(duration: 0.8)) {
                     showSplash = false
                 }
             }
         }
     }
+    
 }
 
 // A darker, modern splash screen
 struct DarkSplashScreen: View {
     var body: some View {
         ZStack {
-            LinearGradient(gradient: Gradient(colors: [Color.black, Color.indigo]),
-                           startPoint: .topLeading,
-                           endPoint: .bottomTrailing)
+            // Use the same gradient as HabitTrackerView for consistency
+            LinearGradient(
+                gradient: Gradient(colors: [Color(hex: "121212"), Color(hex: "1e1e1e")]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .edgesIgnoringSafeArea(.all)
+            
+            // Show the Louie mascot image centered on screen
+            Image("SplashImage")
+                .resizable()
+                .scaledToFit()
+                .frame(width: UIScreen.main.bounds.width * 0.8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .edgesIgnoringSafeArea(.all)
-            VStack(spacing: 20) {
-                Image(systemName: "brain.head.profile")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 120, height: 120)
-                    .foregroundColor(.white)
-                Text("Optimize")
-                    .font(.system(size: 44, weight: .heavy))
-                    .foregroundColor(.white)
-            }
-            .shadow(color: .black.opacity(0.8), radius: 10, x: 0, y: 10)
         }
     }
 }
@@ -156,7 +160,8 @@ struct HabitGridView: View {
                         month: month,
                         status: completionStatus(for: date),
                         cellSize: cellSize,
-                        onTap: { toggleStatus(for: date) }
+                        // Disable onTap interaction for calendar view
+                        onTap: { /* Empty closure - disabled in calendar view */ }
                     )
                 }
             }
@@ -168,7 +173,7 @@ struct HabitGridView: View {
     
     // MARK: - Helper Methods
     
-    /// Returns the completion status for a given date
+    /// Returns the completion status for a habit on a specific date
     private func completionStatus(for date: Date) -> CompletionStatus {
         // Get the start of the day (midnight) for the given date
         let calendar = Calendar.current
@@ -178,7 +183,7 @@ struct HabitGridView: View {
         return viewModel.getCompletionStatus(for: habit, on: startOfDay)
     }
     
-    /// Toggles the completion status for a given date
+    /// Toggles the completion status for a habit on a specific date
     private func toggleStatus(for date: Date) {
         // Get the start of the day (midnight) for the given date
         let calendar = Calendar.current
@@ -475,7 +480,7 @@ class HabitTrackerViewModel: ObservableObject {
             if let isCompleted = habit.progress[day], isCompleted {
                 currentStreak += 1
             } else if let habitCompletions = self.completions[habit.id],
-                      let status = habitCompletions[dayToCheck], 
+                      let status = habitCompletions[dayToCheck],
                       status == .completed {
                 currentStreak += 1
             } else {
@@ -581,10 +586,12 @@ struct HabitTrackerView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(gradient: Gradient(colors: [Color(hex: "6a3093"), Color(hex: "a044ff")]),
-                          startPoint: .top,
-                          endPoint: .bottom)
-                .edgesIgnoringSafeArea(.all)
+            LinearGradient(
+                gradient: Gradient(colors: [Color(hex: "121212"), Color(hex: "1e1e1e")]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .edgesIgnoringSafeArea(.all)
             
             HabitDashboardView(viewModel: viewModel)
         }
@@ -603,6 +610,10 @@ struct HabitDashboardView: View {
     @State private var originalPosition: CGPoint? = nil
     @State private var dragOffset: CGFloat = 0
     @State private var habitPositions: [UUID: CGFloat] = [:]
+    
+    // Add wiggle animation state
+    @State private var wiggleAmount = false
+    @State private var timer: Timer? = nil
     
     var body: some View {
         VStack(spacing: 16) {
@@ -662,6 +673,34 @@ struct HabitDashboardView: View {
             AchievementsPopup(isPresented: $showAchievements)
                 .background(BackgroundBlurView())
         }
+        .onChange(of: isReordering) { newValue in
+            // Start or stop the animation timer when reordering changes
+            if newValue {
+                startWiggleTimer()
+            } else {
+                stopWiggleTimer()
+            }
+        }
+        .onDisappear {
+            // Clean up timer when view disappears
+            stopWiggleTimer()
+        }
+    }
+    
+    // Timer functions for wiggle animation
+    private func startWiggleTimer() {
+        // Reset wiggle state
+        wiggleAmount = false
+        
+        // Create timer that toggles the wiggle state every 0.15 seconds
+        timer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { _ in
+            wiggleAmount.toggle()
+        }
+    }
+    
+    private func stopWiggleTimer() {
+        timer?.invalidate()
+        timer = nil
     }
     
     // Empty state when no habits exist
@@ -705,13 +744,7 @@ struct HabitDashboardView: View {
         }
         .overlay(
             isReordering ?
-            Button(action: {
-                withAnimation {
-                    isReordering = false
-                    draggedHabitID = nil
-                    dragOffset = 0
-                }
-            }) {
+            Button(action: exitReorderingMode) {
                 Text("Done")
                     .font(.headline)
                     .foregroundColor(.white)
@@ -725,6 +758,8 @@ struct HabitDashboardView: View {
             : nil,
             alignment: .bottom
         )
+        // Allow scrolling even when reordering 
+        .disabled(false)
     }
     
     // Helper function to create habit card views with appropriate gestures
@@ -742,64 +777,83 @@ struct HabitDashboardView: View {
                 )
             }
         )
-        .offset(y: dragOffset(for: habit.id))
-        .zIndex(draggedHabitID == habit.id ? 1 : 0)
+        .offset(y: offsetFor(habit: habit))
+        .zIndex(draggedHabitID == habit.id ? 100 : 0) // Give dragged item higher z-index
         
         // Add rotation animation when reordering
         let cardWithRotation = card
             .rotationEffect(isReordering && draggedHabitID != habit.id ? 
-                            Angle(degrees: -1 + Double.random(in: 0...2)) : .zero)
-            .animation(isReordering && draggedHabitID != habit.id ? 
-                      Animation.easeInOut(duration: 0.15).repeatForever(autoreverses: true) : .default, 
-                      value: isReordering)
+                           Angle(degrees: wiggleAmount ? -1 : 1) : .zero)
+            .animation(.easeInOut(duration: 0.15), value: wiggleAmount)
         
-        // Return card with appropriate gestures attached
-        if isReordering {
-            return AnyView(
-                cardWithRotation.onLongPressGesture {
-                    // Nothing happens on long press during reordering
-                }
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            handleDragChange(value: value, habitID: habit.id)
+        // Return card with appropriate gestures
+        return AnyView(
+            cardWithRotation
+                .onLongPressGesture(minimumDuration: 0.5) {
+                    if !isReordering {
+                        withAnimation {
+                            isReordering = true
+                            impactFeedback(style: .medium)
                         }
-                        .onEnded { _ in
-                            handleDragEnd()
-                        }
-                )
-            )
-        } else {
-            return AnyView(
-                cardWithRotation.onLongPressGesture(minimumDuration: 0.5) {
-                    withAnimation {
-                        isReordering = true
-                        impactFeedback(style: .medium)
                     }
                 }
-            )
-        }
+                .simultaneousGesture(
+                    DragGesture()
+                        .onChanged { value in
+                            if isReordering {
+                                handleDragChange(value: value, habitID: habit.id)
+                            }
+                        }
+                        .onEnded { _ in
+                            if isReordering {
+                                handleDragEnd()
+                            }
+                        }
+                )
+        )
     }
     
     // Helper function to handle drag changes
     private func handleDragChange(value: DragGesture.Value, habitID: UUID) {
+        // Always set the draggedHabitID when a drag starts
         if draggedHabitID == nil {
             draggedHabitID = habitID
             originalPosition = value.startLocation
         }
         
+        // Only update if this is the habit being dragged
         if draggedHabitID == habitID {
+            // Update vertical offset based on drag gesture
             dragOffset = value.translation.height
             
-            let currentPosition = habitPositions[habitID] ?? 0
-            let newPosition = findNewPosition(from: currentPosition, offset: dragOffset)
+            // Find current position of the dragged habit
+            guard let currentIndex = viewModel.habits.firstIndex(where: { $0.id == habitID }) else { return }
             
-            if let fromIndex = viewModel.habits.firstIndex(where: { $0.id == habitID }),
-               let toIndex = Int(exactly: min(max(0, newPosition), viewModel.habits.count - 1)),
-               fromIndex != toIndex {
-                withAnimation(.spring()) {
-                    viewModel.reorderHabits(fromIndex: fromIndex, toIndex: toIndex)
-                    impactFeedback(style: .light)
+            // Calculate the current position with the drag offset
+            let currentPosition = habitPositions[habitID] ?? 0
+            let draggedPosition = currentPosition + dragOffset
+            
+            // Check if we've dragged over other habits
+            for (id, position) in habitPositions where id != habitID {
+                // Find the index of the habit we're potentially dragging over
+                guard let otherIndex = viewModel.habits.firstIndex(where: { $0.id == id }) else { continue }
+                
+                // Only consider habits above or below us
+                if (draggedPosition > position && currentIndex < otherIndex) || 
+                   (draggedPosition < position && currentIndex > otherIndex) {
+                    
+                    // Perform the reorder
+                    withAnimation(.spring()) {
+                        viewModel.reorderHabits(fromIndex: currentIndex, toIndex: otherIndex)
+                        impactFeedback(style: .light)
+                    }
+                    
+                    // Update positions after a slight delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        // This is needed because the layout may have changed
+                        // but don't reset dragOffset to keep dragging smooth
+                    }
+                    return
                 }
             }
         }
@@ -810,34 +864,31 @@ struct HabitDashboardView: View {
         withAnimation(.spring()) {
             draggedHabitID = nil
             dragOffset = 0
-            isReordering = false
+            // Don't exit reordering mode automatically
         }
     }
     
-    // Helper function to calculate the offset for each habit during drag
-    private func dragOffset(for habitID: UUID) -> CGFloat {
-        guard let draggedID = draggedHabitID else { return 0 }
-        if habitID == draggedID {
+    // Helper function for the Done button
+    private func exitReorderingMode() {
+        withAnimation {
+            isReordering = false
+            draggedHabitID = nil
+            dragOffset = 0
+        }
+        stopWiggleTimer()
+    }
+    
+    // Helper function to calculate the offset for each habit card
+    private func offsetFor(habit: Habit) -> CGFloat {
+        guard let draggedID = draggedHabitID, isReordering else { return 0 }
+        
+        // If this is the habit being dragged, use the dragOffset
+        if habit.id == draggedID {
             return dragOffset
         }
+        
+        // Otherwise, return 0 as we're handling reordering through the actual list
         return 0
-    }
-    
-    // Helper function to find the new position for a dragged habit
-    private func findNewPosition(from currentPosition: CGFloat, offset: CGFloat) -> Int {
-        let targetPosition = currentPosition + offset
-        
-        // Sort the positions
-        let sortedPositions = habitPositions.sorted { $0.value < $1.value }
-        
-        // Find the position index where the target position fits
-        for (index, position) in sortedPositions.enumerated() {
-            if targetPosition < position.value {
-                return index
-            }
-        }
-        
-        return sortedPositions.count - 1
     }
     
     // Haptic feedback helper
@@ -855,95 +906,162 @@ struct HabitCardView: View {
     @State private var showMoodTagPopup = false
     @State private var showEditHabit = false
     
+    // Swipe gesture state
+    @State private var offset: CGFloat = 0
+    @State private var isSwiping = false
+    
     var body: some View {
-        HStack(spacing: 0) {
-            // Left section - emoji and edit button
-            VStack(alignment: .center) {
-                Button(action: {
-                    showEditHabit = true
-                }) {
-                    Image(systemName: "ellipsis")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-                }
-                
-                Spacer()
-                
-                Text(habitEmoji)
-                    .font(.system(size: 30))
-                    .frame(width: 50, height: 50)
-                    .background(Color.white.opacity(0.1))
-                    .clipShape(Circle())
-                
-                Spacer()
-            }
-            .frame(width: 60)
-            .padding(.vertical, 10)
-            
-            // Center section - habit name and weekly progress
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(habit.title)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    
-                    if let moodEntry = viewModel.getMoodEntry(for: habit) {
-                        Text(moodEntry.mood.rawValue)
-                            .font(.caption2)
-                    }
-                }
-                
-                if !habit.description.isEmpty {
-                    Text(habit.description)
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-                        .lineLimit(1)
-                }
-                
-                HStack(spacing: 4) {
-                    ForEach(-6...0, id: \.self) { dayOffset in
-                        WeekdayProgressView(
-                            dayOffset: dayOffset,
-                            habit: habit
+        ZStack {
+            // Background swipe action indicators - only shown based on swipe direction
+            HStack(spacing: 0) {
+                // Complete action (swipe right reveals green checkmark)
+                if offset > 0 {
+                    Rectangle()
+                        .foregroundColor(.green)
+                        .frame(width: offset)
+                        .overlay(
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.white)
+                                .font(.title2)
+                                .opacity(min(1.0, CGFloat(offset) / 60.0))
+                                .padding(.leading, 16),
+                            alignment: .leading
                         )
-                    }
-                }
-            }
-            .padding(.horizontal, 10)
-            
-            // Right section - completion checkmark
-            VStack {
-                Button(action: {
-                    viewModel.toggleCompletion(for: habit)
-                    
-                    // Fixed: Check if habit is marked as completed after toggling
-                    let isNowCompleted = habit.completed || 
-                        (viewModel.completions[habit.id]?[Calendar.current.startOfDay(for: Date())] == .completed)
-                    
-                    if isNowCompleted {
-                        showMoodTagPopup = true
-                    }
-                }) {
-                    Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 30))
-                        .foregroundColor(isCompleted ? .green : .white.opacity(0.7))
                 }
                 
-                if showStreakCounter {
-                    Text("🔥 \(calculateStreak)")
-                        .font(.caption2)
-                        .foregroundColor(.yellow)
-                        .padding(4)
-                        .background(Color.black.opacity(0.3))
-                        .clipShape(Capsule())
+                Spacer()
+                
+                // Incomplete action (swipe left reveals red X)
+                if offset < 0 {
+                    Rectangle()
+                        .foregroundColor(.red)
+                        .frame(width: -offset)
+                        .overlay(
+                            Image(systemName: "xmark")
+                                .foregroundColor(.white)
+                                .font(.title2)
+                                .opacity(min(1.0, CGFloat(-offset) / 60.0))
+                                .padding(.trailing, 16),
+                            alignment: .trailing
+                        )
                 }
             }
-            .frame(width: 60)
-            .padding(.trailing, 10)
+            .frame(height: 100)
+            .cornerRadius(12)
+            
+            // Main card content
+            HStack(spacing: 0) {
+                // Left section - emoji and edit button
+                VStack(alignment: .center) {
+                    Spacer()
+                    
+                    Text(habitEmoji)
+                        .font(.system(size: 30))
+                        .frame(width: 50, height: 50)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                    
+                    Button(action: {
+                        showEditHabit = true
+                    }) {
+                        Image(systemName: "ellipsis")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    
+                    Spacer()
+                }
+                .frame(width: 60)
+                .padding(.vertical, 10)
+                
+                // Center section - habit name, streak counter, and weekly progress
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(habit.title)
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        // Streak counter moved next to title
+                        if showStreakCounter {
+                            Text("🔥 \(calculateStreak)")
+                                .font(.caption2)
+                                .foregroundColor(.yellow)
+                                .padding(4)
+                                .background(Color.black.opacity(0.3))
+                                .clipShape(Capsule())
+                        }
+                        
+                        Spacer()
+                        
+                        // Mood emoji removed from display (data structure retained)
+                    }
+                    
+                    if !habit.description.isEmpty {
+                        Text(habit.description)
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                            .lineLimit(1)
+                    }
+                    
+                    // Larger weekly progress view
+                    HStack(spacing: 6) {
+                        ForEach(-6...0, id: \.self) { dayOffset in
+                            WeekdayProgressView(
+                                dayOffset: dayOffset,
+                                habit: habit
+                            )
+                            .frame(width: 28, height: 28) // Increased size
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.horizontal, 10)
+            }
+            .frame(height: 100)
+            .background(Color.white.opacity(0.1))
+            .cornerRadius(12)
+            .offset(x: offset)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        // Only allow swiping when not reordering
+                        if !isReordering {
+                            // Limit the drag distance with some resistance
+                            let translation = value.translation.width
+                            offset = translation > 0 ? min(translation * 0.7, 100) : max(translation * 0.7, -100)
+                        }
+                    }
+                    .onEnded { value in
+                        // Only process swipe when not reordering
+                        if !isReordering {
+                            let translation = value.translation.width
+                            let velocity = value.predictedEndTranslation.width - value.translation.width
+                            let swipeThreshold: CGFloat = 60
+                            
+                            if translation > swipeThreshold || (translation > 20 && velocity > 100) {
+                                // Complete the habit (swipe right)
+                                withAnimation(.spring()) {
+                                    offset = 0
+                                }
+                                logHabitAsCompleted()
+                                
+                            } else if translation < -swipeThreshold || (translation < -20 && velocity < -100) {
+                                // Mark as not completed (swipe left)
+                                withAnimation(.spring()) {
+                                    offset = 0
+                                }
+                                logHabitAsNotCompleted()
+                                
+                            } else {
+                                // Reset position
+                                withAnimation(.spring()) {
+                                    offset = 0
+                                }
+                            }
+                        }
+                    }
+            )
         }
-        .frame(height: 100)
-        .background(Color.white.opacity(0.1))
-        .cornerRadius(12)
         .sheet(isPresented: $showMoodTagPopup) {
             MoodTagPopup(habit: habit, viewModel: viewModel, isPresented: $showMoodTagPopup)
                 .background(BackgroundBlurView())
@@ -951,6 +1069,26 @@ struct HabitCardView: View {
         .sheet(isPresented: $showEditHabit) {
             EditHabitPopup(habit: habit, viewModel: viewModel, isPresented: $showEditHabit)
                 .background(BackgroundBlurView())
+        }
+    }
+    
+    // Helper functions for habit logging
+    private func logHabitAsCompleted() {
+        // Only allow swiping when not reordering
+        guard !isReordering else { return }
+        
+        if !isCompleted {
+            viewModel.toggleCompletion(for: habit)
+            showMoodTagPopup = true
+        }
+    }
+    
+    private func logHabitAsNotCompleted() {
+        // Only allow swiping when not reordering
+        guard !isReordering else { return }
+        
+        if isCompleted {
+            viewModel.toggleCompletion(for: habit)
         }
     }
     
@@ -1121,7 +1259,7 @@ struct MoodTagPopup: View {
         .opacity(selectedMood == nil ? 0.5 : 1)
     }
     
-    // Add Notes button 
+    // Add Notes button
     private var addNotesButton: some View {
         Button(action: {
             guard let mood = selectedMood else { return }
@@ -1311,7 +1449,6 @@ struct CreateHabitPopup: View {
     @Binding var isPresented: Bool
     @State private var title = ""
     @State private var description = ""
-    @State private var reminderTime = Date()
     @State private var frequency: HabitFrequency = .daily
     @State private var customDays: [Int] = []
     @State private var selectedEmoji: String = "📝"
@@ -1380,14 +1517,6 @@ struct CreateHabitPopup: View {
                 if frequency == .custom {
                     CustomDaysSelector(customDays: $customDays)
                 }
-                
-                Text("Reminder")
-                    .foregroundColor(.white)
-                
-                DatePicker("", selection: $reminderTime, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(WheelDatePickerStyle())
-                    .labelsHidden()
-                    .foregroundColor(.white)
             }
             
             Button(action: {
@@ -1413,7 +1542,7 @@ struct CreateHabitPopup: View {
         viewModel.addHabit(
             title: title,
             description: description,
-            reminderTime: reminderTime,
+            reminderTime: Date(), // Default value, as field was removed
             frequency: frequency,
             customDays: customDays,
             emoji: selectedEmoji.isEmpty ? "📝" : selectedEmoji
@@ -1429,7 +1558,7 @@ struct EditHabitPopup: View {
     @State private var title: String
     @State private var description: String
     @State private var frequency: HabitFrequency
-    @State private var reminderTime: Date
+    @State private var reminderTime: Date // Keep for data model compatibility
     @State private var customDays: [Int]
     @State private var selectedEmoji: String
     
@@ -1509,14 +1638,6 @@ struct EditHabitPopup: View {
                 if frequency == .custom {
                     CustomDaysSelector(customDays: $customDays)
                 }
-                
-                Text("Reminder")
-                    .foregroundColor(.white)
-                
-                DatePicker("", selection: $reminderTime, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(WheelDatePickerStyle())
-                    .labelsHidden()
-                    .foregroundColor(.white)
             }
             
             HStack {
@@ -1557,7 +1678,7 @@ struct EditHabitPopup: View {
             viewModel.habits[index].title = title
             viewModel.habits[index].description = description
             viewModel.habits[index].frequency = frequency
-            viewModel.habits[index].reminderTime = reminderTime
+            viewModel.habits[index].reminderTime = reminderTime // Keep for data model compatibility
             viewModel.habits[index].customDays = customDays
             viewModel.habits[index].emoji = selectedEmoji.isEmpty ? "📝" : selectedEmoji
         }
@@ -1577,10 +1698,12 @@ struct HabitCalendarView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(gradient: Gradient(colors: [Color(hex: "6a3093"), Color(hex: "a044ff")]),
-                          startPoint: .top,
-                          endPoint: .bottom)
-                .edgesIgnoringSafeArea(.all)
+            LinearGradient(
+                gradient: Gradient(colors: [Color(hex: "121212"), Color(hex: "1e1e1e")]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .edgesIgnoringSafeArea(.all)
             
             VStack {
                 // Month selector
@@ -2146,3 +2269,4 @@ struct HabitProgressCard: View {
             .cornerRadius(8)
     }
 }
+
