@@ -6,17 +6,28 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B55244382D92747E003EEAC9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B552442F2D92747E003EEAC9 /* Assets.xcassets */; };
+		B55244392D92747E003EEAC9 /* CHANGELOG.md in Resources */ = {isa = PBXBuildFile; fileRef = B55244302D92747E003EEAC9 /* CHANGELOG.md */; };
+		B552443A2D92747E003EEAC9 /* Context.md in Resources */ = {isa = PBXBuildFile; fileRef = B55244322D92747E003EEAC9 /* Context.md */; };
+		B552443B2D92747E003EEAC9 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B55244342D92747E003EEAC9 /* Preview Assets.xcassets */; };
+		B552443C2D92747E003EEAC9 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = B55244362D92747E003EEAC9 /* README.md */; };
+		B552443D2D92747E003EEAC9 /* LouieApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55244332D92747E003EEAC9 /* LouieApp.swift */; };
+		B552443E2D92747E003EEAC9 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552442E2D92747E003EEAC9 /* AIService.swift */; };
+		B552443F2D92747E003EEAC9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55244312D92747E003EEAC9 /* ContentView.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		B52DF4C52D7D47C2002D19E4 /* Louie.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Louie.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B552442E2D92747E003EEAC9 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
+		B552442F2D92747E003EEAC9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B55244302D92747E003EEAC9 /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
+		B55244312D92747E003EEAC9 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B55244322D92747E003EEAC9 /* Context.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Context.md; sourceTree = "<group>"; };
+		B55244332D92747E003EEAC9 /* LouieApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LouieApp.swift; sourceTree = "<group>"; };
+		B55244342D92747E003EEAC9 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		B55244362D92747E003EEAC9 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		B52DF4C72D7D47C2002D19E4 /* Louie */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Louie;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B52DF4C22D7D47C2002D19E4 /* Frameworks */ = {
@@ -32,8 +43,16 @@
 		B52DF4BC2D7D47C2002D19E4 = {
 			isa = PBXGroup;
 			children = (
-				B52DF4C72D7D47C2002D19E4 /* Louie */,
 				B52DF4C62D7D47C2002D19E4 /* Products */,
+				B552442E2D92747E003EEAC9 /* AIService.swift */,
+				B552442F2D92747E003EEAC9 /* Assets.xcassets */,
+				B55244302D92747E003EEAC9 /* CHANGELOG.md */,
+				B55244312D92747E003EEAC9 /* ContentView.swift */,
+				B55244322D92747E003EEAC9 /* Context.md */,
+				B55244332D92747E003EEAC9 /* LouieApp.swift */,
+				B55244352D92747E003EEAC9 /* Preview Content */,
+				B55244362D92747E003EEAC9 /* README.md */,
+				B55244372D92747E003EEAC9 /* Services */,
 			);
 			sourceTree = "<group>";
 		};
@@ -43,6 +62,21 @@
 				B52DF4C52D7D47C2002D19E4 /* Louie.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		B55244352D92747E003EEAC9 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				B55244342D92747E003EEAC9 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		B55244372D92747E003EEAC9 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -59,9 +93,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				B52DF4C72D7D47C2002D19E4 /* Louie */,
 			);
 			name = Louie;
 			packageProductDependencies = (
@@ -82,6 +113,7 @@
 				TargetAttributes = {
 					B52DF4C42D7D47C2002D19E4 = {
 						CreatedOnToolsVersion = 16.2;
+						LastSwiftMigration = 1620;
 					};
 				};
 			};
@@ -109,6 +141,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B55244382D92747E003EEAC9 /* Assets.xcassets in Resources */,
+				B55244392D92747E003EEAC9 /* CHANGELOG.md in Resources */,
+				B552443A2D92747E003EEAC9 /* Context.md in Resources */,
+				B552443B2D92747E003EEAC9 /* Preview Assets.xcassets in Resources */,
+				B552443C2D92747E003EEAC9 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +156,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B552443D2D92747E003EEAC9 /* LouieApp.swift in Sources */,
+				B552443E2D92747E003EEAC9 /* AIService.swift in Sources */,
+				B552443F2D92747E003EEAC9 /* ContentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -249,6 +289,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Louie/Preview Content\"";
@@ -269,6 +310,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.fox.Louie;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -279,6 +321,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Louie/Preview Content\"";
