@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdata
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/
+*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+.idea/
+
+# SwiftPM
+.build/
+
+# Other
+*.swp
