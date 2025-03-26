@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B5487D122D93951800C7CF7F /* HabitMoodEntryView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5487D112D93951800C7CF7F /* HabitMoodEntryView 2.swift */; };
 		B55244382D92747E003EEAC9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B552442F2D92747E003EEAC9 /* Assets.xcassets */; };
 		B55244392D92747E003EEAC9 /* CHANGELOG.md in Resources */ = {isa = PBXBuildFile; fileRef = B55244302D92747E003EEAC9 /* CHANGELOG.md */; };
 		B552443A2D92747E003EEAC9 /* Context.md in Resources */ = {isa = PBXBuildFile; fileRef = B55244322D92747E003EEAC9 /* Context.md */; };
@@ -48,6 +49,7 @@
 
 /* Begin PBXFileReference section */
 		B52DF4C52D7D47C2002D19E4 /* Louie.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Louie.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5487D112D93951800C7CF7F /* HabitMoodEntryView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HabitMoodEntryView 2.swift"; sourceTree = "<group>"; };
 		B552442E2D92747E003EEAC9 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		B552442F2D92747E003EEAC9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B55244302D92747E003EEAC9 /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 		B552843F2D9376D900F215D6 /* Habit */ = {
 			isa = PBXGroup;
 			children = (
+				B5487D112D93951800C7CF7F /* HabitMoodEntryView 2.swift */,
 				B55284312D9376D900F215D6 /* AchievementsPopup.swift */,
 				B55284322D9376D900F215D6 /* CreateHabitPopup.swift */,
 				B55284332D9376D900F215D6 /* CustomDaysSelector.swift */,
@@ -343,6 +346,7 @@
 				B552844F2D9376D900F215D6 /* CustomDaysSelector.swift in Sources */,
 				B55284502D9376D900F215D6 /* Color+Hex.swift in Sources */,
 				B55284512D9376D900F215D6 /* HabitCardView.swift in Sources */,
+				B5487D122D93951800C7CF7F /* HabitMoodEntryView 2.swift in Sources */,
 				B55284522D9376D900F215D6 /* MainTabView.swift in Sources */,
 				B55284532D9376D900F215D6 /* SplashScreen.swift in Sources */,
 				B55284542D9376D900F215D6 /* DailyCheckInView.swift in Sources */,

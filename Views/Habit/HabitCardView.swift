@@ -7,10 +7,12 @@ struct HabitCardView: View {
     @Binding var isReordering: Bool
     @State private var showMoodTagPopup = false
     @State private var showEditHabit = false
+    @State private var isShowingMoodEntry = false
     
     // Swipe gesture state
     @State private var offset: CGFloat = 0
-    @State private var isSwiping = false
+    @State private var isSwiped: Bool = false
+    @State private var isEditHabitPresented: Bool = false
     
     var body: some View {
         ZStack {
@@ -51,91 +53,104 @@ struct HabitCardView: View {
             .frame(height: 100)
             .cornerRadius(12)
             
-            // Main card content
-            HStack(spacing: 0) {
-                // Left section - emoji and edit button
-                VStack(alignment: .center) {
-                    Spacer()
-                    
-                    Text(habitEmoji)
-                        .font(.system(size: 30))
-                        .frame(width: 50, height: 50)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
-                    
-                    Button(action: {
-                        showEditHabit = true
-                    }) {
-                        Image(systemName: "ellipsis")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    
-                    Spacer()
-                }
-                .frame(width: 60)
-                .padding(.vertical, 10)
-                
-                // Center section - habit name, streak counter, and weekly progress
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(habit.title)
-                            .font(.headline)
-                            .foregroundColor(.white)
+            // Main card content with mood entry view
+            VStack(spacing: 0) {
+                // Main card content
+                HStack(spacing: 0) {
+                    // Left section - emoji and edit button
+                    VStack(alignment: .center) {
+                        Spacer()
                         
-                        // Streak counter moved next to title
-                        if showStreakCounter {
-                            Text("🔥 \(calculateStreak)")
-                                .font(.caption2)
-                                .foregroundColor(.yellow)
-                                .padding(4)
-                                .background(Color.black.opacity(0.3))
-                                .clipShape(Capsule())
+                        Text(habitEmoji)
+                            .font(.system(size: 30))
+                            .frame(width: 50, height: 50)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
+                        
+                        Button(action: {
+                            showEditHabit = true
+                        }) {
+                            Image(systemName: "ellipsis")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.7))
                         }
                         
                         Spacer()
-                        
-                        // Mood emoji removed from display (data structure retained)
                     }
+                    .frame(width: 60)
+                    .padding(.vertical, 10)
                     
-                    if !habit.description.isEmpty {
-                        Text(habit.description)
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                            .lineLimit(1)
-                    }
-                    
-                    // Larger weekly progress view
-                    HStack(spacing: 6) {
-                        ForEach(-6...0, id: \.self) { dayOffset in
-                            WeekdayProgressView(
-                                dayOffset: dayOffset,
-                                habit: habit
-                            )
-                            .frame(width: 28, height: 28) // Increased size
+                    // Center section - habit name, streak counter, and weekly progress
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(habit.title)
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            
+                            // Streak counter moved next to title
+                            if showStreakCounter {
+                                Text("🔥 \(calculateStreak)")
+                                    .font(.caption2)
+                                    .foregroundColor(.yellow)
+                                    .padding(4)
+                                    .background(Color.black.opacity(0.3))
+                                    .clipShape(Capsule())
+                            }
+                            
+                            Spacer()
+                            
+                            // Mood emoji removed from display (data structure retained)
                         }
+                        
+                        if !habit.description.isEmpty {
+                            Text(habit.description)
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.7))
+                                .lineLimit(1)
+                        }
+                        
+                        // Larger weekly progress view
+                        HStack(spacing: 6) {
+                            ForEach(-6...0, id: \.self) { dayOffset in
+                                WeekdayProgressView(
+                                    dayOffset: dayOffset,
+                                    habit: habit
+                                )
+                                .frame(width: 28, height: 28) // Increased size
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
                 }
-                .padding(.horizontal, 10)
+                .frame(height: 100)
+                .background(Color.white.opacity(0.1))
+                .cornerRadius(12)
+                
+                // Mood entry view that appears when a habit is completed
+                if isShowingMoodEntry {
+                    HabitMoodEntryView(
+                        habit: habit,
+                        viewModel: viewModel,
+                        isExpanded: $isShowingMoodEntry
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
-            .frame(height: 100)
-            .background(Color.white.opacity(0.1))
-            .cornerRadius(12)
             .offset(x: offset)
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        // Only allow swiping when not reordering
-                        if !isReordering {
+                        // Only allow swiping when not reordering and not showing mood entry
+                        if !isReordering && !isShowingMoodEntry {
                             // Limit the drag distance with some resistance
                             let translation = value.translation.width
                             offset = translation > 0 ? min(translation * 0.7, 100) : max(translation * 0.7, -100)
                         }
                     }
                     .onEnded { value in
-                        // Only process swipe when not reordering
-                        if !isReordering {
+                        // Only process swipe when not reordering and not showing mood entry
+                        if !isReordering && !isShowingMoodEntry {
                             let translation = value.translation.width
                             let velocity = value.predictedEndTranslation.width - value.translation.width
                             let swipeThreshold: CGFloat = 60
@@ -164,6 +179,7 @@ struct HabitCardView: View {
                     }
             )
         }
+        .animation(.spring(response: 0.3), value: isShowingMoodEntry)
         .sheet(isPresented: $showMoodTagPopup) {
             MoodTagPopup(habit: habit, viewModel: viewModel, isPresented: $showMoodTagPopup)
                 .background(BackgroundBlurView())
@@ -181,7 +197,13 @@ struct HabitCardView: View {
         
         if !isCompleted {
             viewModel.toggleCompletion(for: habit)
-            showMoodTagPopup = true
+            
+            // Show inline mood entry instead of popup
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation(.spring()) {
+                    isShowingMoodEntry = true
+                }
+            }
         }
     }
     
@@ -191,6 +213,13 @@ struct HabitCardView: View {
         
         if isCompleted {
             viewModel.toggleCompletion(for: habit)
+            
+            // Hide mood entry if it's showing
+            if isShowingMoodEntry {
+                withAnimation(.spring()) {
+                    isShowingMoodEntry = false
+                }
+            }
         }
     }
     
@@ -215,11 +244,10 @@ struct HabitCardView: View {
     }
     
     private var showStreakCounter: Bool {
-        // Placeholder logic - would depend on user settings
-        return true
+        calculateStreak > 0
     }
     
     private var calculateStreak: Int {
-        return viewModel.calculateStreak(for: habit)
+        viewModel.calculateStreak(for: habit.id)
     }
 } 
