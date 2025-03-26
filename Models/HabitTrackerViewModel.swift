@@ -27,7 +27,15 @@ class HabitTrackerViewModel: ObservableObject {
     
     init() {
         loadHabits()
+
+        #if !DEBUG
         syncWithCloudKit()
+        #else
+        // Prevent CloudKit sync when previewing in Xcode
+        if !ProcessInfo.processInfo.environment.keys.contains("XCODE_RUNNING_FOR_PREVIEWS") {
+            syncWithCloudKit()
+        }
+        #endif
     }
     
     func addHabit(title: String, description: String, reminderTime: Date, frequency: HabitFrequency, customDays: [Int] = [], emoji: String = "📝") {
