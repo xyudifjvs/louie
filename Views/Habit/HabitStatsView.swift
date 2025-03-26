@@ -53,20 +53,18 @@ public struct HabitStatsView: View {
                         StatCard(title: "Mood Frequency") {
                             moodFrequencyView
                         }
-                        
-                        // Completions per Month Card (spans two columns)
-                        StatCard(title: "Completions per Month", isWide: true) {
-                            completionsPerMonthView
-                        }
-                        .gridCellColumns(2)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Completions per Month Card (now outside the grid)
+                    StatCard(title: "Completions per Month", isWide: true) {
+                        completionsPerMonthView
                     }
                     .padding(.horizontal)
                 }
                 .padding(.top)
             }
         }
-        .navigationTitle("Habit Stats")
-        .navigationBarTitleDisplayMode(.inline)
     }
     
     // Header with habit info
@@ -175,36 +173,64 @@ public struct HabitStatsView: View {
     
     // Completions per month view
     private var completionsPerMonthView: some View {
-        VStack {
+        VStack(alignment: .leading, spacing: 8) {
             let monthlyData = getCompletionsPerMonth()
             
             if monthlyData.isEmpty {
                 Text("No completion data")
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .center)
             } else {
-                HStack(alignment: .bottom, spacing: 4) {
+                // Chart labels
+                HStack {
+                    Text("Monthly completion trends")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.7))
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 8, height: 8)
+                        
+                        Text("Completed")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+                .padding(.top, 4)
+                
+                // Chart
+                HStack(alignment: .bottom, spacing: 10) {
                     ForEach(monthlyData, id: \.month) { item in
-                        VStack {
+                        VStack(spacing: 4) {
                             Text("\(item.count)")
-                                .font(.caption2)
+                                .font(.caption)
                                 .foregroundColor(.white)
                             
                             Rectangle()
-                                .fill(Color.green)
-                                .frame(width: 20, height: CGFloat(item.count) * 5)
+                                .fill(LinearGradient(
+                                    gradient: Gradient(colors: [Color.green.opacity(0.7), Color.green]),
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ))
+                                .frame(width: 28, height: max(CGFloat(item.count) * 6, 5))
                                 .cornerRadius(4)
                             
                             Text(item.month)
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                                .rotationEffect(.degrees(-45))
-                                .frame(width: 24)
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.8))
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 10)
             }
         }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity)
     }
     
     // MARK: - Data Helper Methods
@@ -347,7 +373,11 @@ public struct StatCard<Content: View>: View {
         }
         .padding()
         .frame(height: 180)
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(16)
+        .frame(maxWidth: isWide ? .infinity : nil)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
+                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        )
     }
 } 

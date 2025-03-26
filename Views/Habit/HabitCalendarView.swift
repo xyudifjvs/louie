@@ -38,6 +38,13 @@ struct HabitCalendarView: View {
         }
         .navigationTitle("Habit Calendar")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Habit Calendar")
+                    .font(.headline)
+                    .foregroundColor(.white)
+            }
+        }
         .environmentObject(viewModel)
         .onAppear {
             // Create a HabitViewModel for each habit

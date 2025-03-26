@@ -35,7 +35,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Added HabitStatsView to display detailed statistics for each habit
   - Shows total completions, best streaks, and mood tags frequency
-  - Includes a monthly completion chart to track habit consistency
+  - Includes a rectangular monthly completion chart spanning the width of two cards
+  - Enhanced bar chart with gradient fills and improved spacing
   - Available by tapping on habit cards in the calendar view
   - Provides visual insights through bar charts and stat cards
 
