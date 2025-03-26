@@ -8,6 +8,7 @@ struct HabitMoodEntryView: View {
     @State private var notes: String = ""
     @State private var isSaving: Bool = false
     @State private var isSaved: Bool = false
+    @FocusState private var isTextFieldFocused: Bool
     
     // Mood options
     private let moodOptions: [(emoji: String, label: String)] = [
@@ -49,6 +50,9 @@ struct HabitMoodEntryView: View {
                         withAnimation(.spring(response: 0.3)) {
                             selectedMood = mood.emoji
                             saveData()
+                            
+                            // Dismiss keyboard if it's open
+                            isTextFieldFocused = false
                         }
                     }
                 }
@@ -68,6 +72,7 @@ struct HabitMoodEntryView: View {
                     .padding(8)
                     .background(Color.white.opacity(0.1))
                     .cornerRadius(8)
+                    .focused($isTextFieldFocused)
                     .onChange(of: notes) { _ in
                         // Debounce saving
                         isSaved = false
@@ -103,6 +108,9 @@ struct HabitMoodEntryView: View {
             
             // Done button
             Button {
+                // Dismiss keyboard
+                isTextFieldFocused = false
+                
                 withAnimation(.spring(response: 0.3)) {
                     isExpanded = false
                 }
@@ -115,10 +123,32 @@ struct HabitMoodEntryView: View {
                     .background(Color.white)
                     .cornerRadius(8)
             }
+            
+            // Keyboard dismiss button when keyboard is visible
+            if isTextFieldFocused {
+                Button {
+                    isTextFieldFocused = false
+                } label: {
+                    Text("Dismiss Keyboard")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(Color.white.opacity(0.1))
+                        .cornerRadius(8)
+                }
+                .padding(.top, 8)
+                .transition(.opacity)
+            }
         }
         .padding(16)
         .background(Color.black.opacity(0.3))
         .cornerRadius(12)
+        .onTapGesture {
+            // Dismiss keyboard when tapping anywhere in the view
+            isTextFieldFocused = false
+        }
+        .animation(.spring(response: 0.3), value: isTextFieldFocused)
         .onAppear {
             // Load existing data if available
             if let existingMood = viewModel.getMoodForHabit(habit.id, forDate: Date()) {

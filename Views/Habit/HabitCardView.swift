@@ -195,14 +195,15 @@ struct HabitCardView: View {
         // Only allow swiping when not reordering
         guard !isReordering else { return }
         
+        // Update habit completion status
         if !isCompleted {
             viewModel.toggleCompletion(for: habit)
-            
-            // Show inline mood entry instead of popup
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                withAnimation(.spring()) {
-                    isShowingMoodEntry = true
-                }
+        }
+        
+        // Always show inline mood entry regardless of previous completion status
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.spring()) {
+                isShowingMoodEntry = true
             }
         }
     }
