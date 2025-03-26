@@ -81,4 +81,61 @@ private func loadFromLocalStorage() {
        let decodedNotesData = try? JSONDecoder().decode([UUID: [Date: String]].self, from: savedNotesData) {
         notesData = decodedNotesData
     }
+}
+
+// Function to calculate streak for a habit ID
+func calculateStreak(for habitId: UUID) -> Int {
+    guard let habit = habits.first(where: { $0.id == habitId }) else {
+        return 0
+    }
+    
+    // Simple placeholder implementation - in a real app, this would be more sophisticated
+    // and would account for habit frequency settings
+    var streak = 0
+    let calendar = Calendar.current
+    let today = calendar.startOfDay(for: Date())
+    
+    var currentDate = today
+    
+    while true {
+        let status = getCompletionStatus(for: habit, on: currentDate)
+        
+        if status == .completed {
+            streak += 1
+        } else {
+            break // Break on first non-completed day
+        }
+        
+        // Go back one day
+        guard let previousDate = calendar.date(byAdding: .day, value: -1, to: currentDate) else { break }
+        currentDate = previousDate
+        
+        // Limit to reasonable streak length for performance
+        if streak >= 365 {
+            break
+        }
+    }
+    
+    return streak
+}
+
+// Log habit completion status for a specific day
+func logHabitCompletion(_ habitId: UUID, day: Int, isCompleted: Bool) {
+    if let index = habits.firstIndex(where: { $0.id == habitId }) {
+        // Update the habit's progress
+        habits[index].progress[day] = isCompleted
+        
+        // Update completions dictionary for consistency
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        if completions[habitId] == nil {
+            completions[habitId] = [:]
+        }
+        
+        completions[habitId]?[today] = isCompleted ? .completed : .notCompleted
+        
+        // Save changes
+        saveHabits()
+    }
 } 
