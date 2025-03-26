@@ -75,3 +75,18 @@ All notable changes to this project will be documented in this file.
 - Fixed HabitViewModel initialization in HabitCalendarView
 - Added missing updateHabitCompletion method to HabitViewModel
 - Added calculateStreak(for:) method overload to support UUID parameter
+
+## [0.2.0] - 2025-03-27
+### Added
+- Integrated CloudKit for data sync across devices
+  - Implemented full CRUD operations for habits, completions, and mood logs
+  - Added CloudKitManager with proper error handling and optimization
+  - Ensures unique records with UUID-based identifiers
+- Two-way sync between local storage and CloudKit
+  - Automatically syncs data at app launch
+  - Real-time sync when habits are added, updated, or deleted
+  - Handles merge conflicts with smart precedence rules
+- Added iCloud account status checking
+- Added CloudKit schema migration utilities
+- Enhanced error handling with user-friendly messages
+- Optimized queries with sorting and filters

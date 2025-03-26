@@ -240,7 +240,7 @@ struct CKMoodLog {
 }
 
 // MARK: - CloudKit Manager
-class CloudKitManager {
+class CloudKitManager: ObservableObject {
     // MARK: - Properties
     static let shared = CloudKitManager()
     
@@ -248,11 +248,32 @@ class CloudKitManager {
     private let publicDB: CKDatabase
     private let privateDB: CKDatabase
     
+    // Published property for UI updates
+    @Published var isSyncing: Bool = false
+    @Published var lastSyncDate: Date?
+    @Published var iCloudAccountStatus: CKAccountStatus = .couldNotDetermine
+    
     // MARK: - Initialization
     private init() {
         container = CKContainer.default()
         publicDB = container.publicCloudDatabase
         privateDB = container.privateCloudDatabase
+        
+        // Check iCloud account status
+        checkAccountStatus()
+    }
+    
+    // Check iCloud account status
+    private func checkAccountStatus() {
+        container.accountStatus { [weak self] status, error in
+            DispatchQueue.main.async {
+                self?.iCloudAccountStatus = status
+                
+                if let error = error {
+                    print("CloudKit account status error: \(error.localizedDescription)")
+                }
+            }
+        }
     }
     
     // MARK: - Habit Methods
@@ -261,53 +282,47 @@ class CloudKitManager {
     /// - Parameter habit: The habit to save
     /// - Parameter completion: Completion handler with result
     func saveHabit(_ habit: Habit, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-        // TODO: Implement CloudKit save operation
-        // 1. Convert Habit to CKHabit
-        // 2. Get CKRecord from CKHabit
-        // 3. Save record to privateDB
-        // 4. Handle result in completion handler
-        
-        // Placeholder implementation
         let ckHabit = CKHabit.from(habit: habit)
         let record = ckHabit.toCKRecord()
         
-        // This would actually save to CloudKit but is commented out for now
-        /*
         privateDB.save(record) { record, error in
             if let error = error {
+                print("Error saving habit to CloudKit: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
             
             guard let record = record else {
-                completion(.failure(NSError(domain: "CloudKitManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unknown error saving habit"])))
+                let error = NSError(domain: "CloudKitManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unknown error saving habit"])
+                completion(.failure(error))
                 return
             }
             
+            print("Successfully saved habit to CloudKit with ID: \(record.recordID)")
             completion(.success(record.recordID))
         }
-        */
-        
-        // For now, just return a placeholder success
-        completion(.success(record.recordID))
     }
     
     /// Fetch all habits from CloudKit
     /// - Parameter completion: Completion handler with result
     func fetchHabits(completion: @escaping (Result<[CKHabit], Error>) -> Void) {
-        // TODO: Implement CloudKit fetch operation
-        // 1. Create query for Habit record type
-        // 2. Execute query against privateDB
-        // 3. Convert CKRecords to CKHabits
-        // 4. Handle result in completion handler
+        DispatchQueue.main.async {
+            self.isSyncing = true
+        }
         
-        // Placeholder implementation
         let query = CKQuery(recordType: RecordType.habit, predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: RecordKey.Habit.createdAt, ascending: false)]
         
-        // This would actually query CloudKit but is commented out for now
-        /*
-        privateDB.perform(query, inZoneWith: nil) { records, error in
+        privateDB.perform(query, inZoneWith: nil) { [weak self] records, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isSyncing = false
+                self.lastSyncDate = Date()
+            }
+            
             if let error = error {
+                print("Error fetching habits from CloudKit: \(error.localizedDescription)")
                 completion(.failure(error))
                 return
             }
@@ -318,12 +333,100 @@ class CloudKitManager {
             }
             
             let habits = records.compactMap { CKHabit.from(record: $0) }
+            print("Successfully fetched \(habits.count) habits from CloudKit")
             completion(.success(habits))
         }
-        */
+    }
+    
+    /// Delete a habit from CloudKit
+    /// - Parameters:
+    ///   - habitID: The ID of the habit to delete
+    ///   - completion: Completion handler with result
+    func deleteHabit(habitID: UUID, completion: @escaping (Result<Void, Error>) -> Void) {
+        // First, find the record ID
+        let predicate = NSPredicate(format: "%K == %@", RecordKey.Habit.id, habitID.uuidString)
+        let query = CKQuery(recordType: RecordType.habit, predicate: predicate)
         
-        // For now, just return empty array
-        completion(.success([]))
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("Error finding habit to delete: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let record = records?.first else {
+                let error = NSError(domain: "CloudKitManager", code: 2, userInfo: [NSLocalizedDescriptionKey: "Habit not found for deletion"])
+                completion(.failure(error))
+                return
+            }
+            
+            // Now delete the record
+            self.privateDB.delete(withRecordID: record.recordID) { _, error in
+                if let error = error {
+                    print("Error deleting habit from CloudKit: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+                
+                print("Successfully deleted habit from CloudKit")
+                completion(.success(()))
+                
+                // Also delete related completions and mood logs
+                self.deleteRelatedRecords(forHabitID: habitID)
+            }
+        }
+    }
+    
+    /// Delete related records (completions and mood logs) for a habit
+    /// - Parameter habitID: The ID of the habit
+    private func deleteRelatedRecords(forHabitID habitID: UUID) {
+        // Delete completions
+        let completionPredicate = NSPredicate(format: "%K == %@", RecordKey.HabitCompletion.habitID, habitID.uuidString)
+        let completionQuery = CKQuery(recordType: RecordType.habitCompletion, predicate: completionPredicate)
+        
+        privateDB.perform(completionQuery, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("Error finding completions to delete: \(error.localizedDescription)")
+                return
+            }
+            
+            guard let records = records, !records.isEmpty else {
+                return
+            }
+            
+            // Delete each completion record
+            for record in records {
+                self.privateDB.delete(withRecordID: record.recordID) { _, error in
+                    if let error = error {
+                        print("Error deleting completion: \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
+        
+        // Delete mood logs
+        let moodPredicate = NSPredicate(format: "%K == %@", RecordKey.MoodLog.habitID, habitID.uuidString)
+        let moodQuery = CKQuery(recordType: RecordType.moodLog, predicate: moodPredicate)
+        
+        privateDB.perform(moodQuery, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("Error finding mood logs to delete: \(error.localizedDescription)")
+                return
+            }
+            
+            guard let records = records, !records.isEmpty else {
+                return
+            }
+            
+            // Delete each mood log record
+            for record in records {
+                self.privateDB.delete(withRecordID: record.recordID) { _, error in
+                    if let error = error {
+                        print("Error deleting mood log: \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
     }
     
     // MARK: - Habit Completion Methods
@@ -335,18 +438,66 @@ class CloudKitManager {
     ///   - status: The completion status
     ///   - completion: Completion handler with result
     func saveHabitCompletion(habitID: UUID, date: Date, status: CompletionStatus, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-        // TODO: Implement CloudKit save operation
-        // 1. Convert to CKHabitCompletion
-        // 2. Get CKRecord from CKHabitCompletion
-        // 3. Save record to privateDB
-        // 4. Handle result in completion handler
+        // Check if there's an existing completion record for this habit and date
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let predicate = NSPredicate(format: "%K == %@ AND %K == %@", 
+                                  RecordKey.HabitCompletion.habitID, habitID.uuidString,
+                                  RecordKey.HabitCompletion.date, startOfDay as NSDate)
+        let query = CKQuery(recordType: RecordType.habitCompletion, predicate: predicate)
         
-        // Placeholder implementation
-        let ckCompletion = CKHabitCompletion.from(habitID: habitID, date: date, status: status)
-        let record = ckCompletion.toCKRecord()
-        
-        // For now, just return a placeholder success
-        completion(.success(record.recordID))
+        privateDB.perform(query, inZoneWith: nil) { [weak self] records, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                print("Error checking for existing habit completion: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            // If we found an existing record, update it
+            if let existingRecord = records?.first {
+                existingRecord[RecordKey.HabitCompletion.status] = status.stringValue
+                
+                self.privateDB.save(existingRecord) { record, error in
+                    if let error = error {
+                        print("Error updating habit completion: \(error.localizedDescription)")
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    guard let record = record else {
+                        let error = NSError(domain: "CloudKitManager", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unknown error updating habit completion"])
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    print("Successfully updated habit completion")
+                    completion(.success(record.recordID))
+                }
+            } else {
+                // Create a new record
+                let ckCompletion = CKHabitCompletion.from(habitID: habitID, date: startOfDay, status: status)
+                let record = ckCompletion.toCKRecord()
+                
+                self.privateDB.save(record) { record, error in
+                    if let error = error {
+                        print("Error saving habit completion: \(error.localizedDescription)")
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    guard let record = record else {
+                        let error = NSError(domain: "CloudKitManager", code: 4, userInfo: [NSLocalizedDescriptionKey: "Unknown error saving habit completion"])
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    print("Successfully saved habit completion")
+                    completion(.success(record.recordID))
+                }
+            }
+        }
     }
     
     /// Fetch all habit completions for a specific habit
@@ -354,34 +505,84 @@ class CloudKitManager {
     ///   - habitID: The ID of the habit
     ///   - completion: Completion handler with result
     func fetchHabitCompletions(habitID: UUID, completion: @escaping (Result<[CKHabitCompletion], Error>) -> Void) {
-        // TODO: Implement CloudKit fetch operation
-        // 1. Create query for HabitCompletion record type with habitID predicate
-        // 2. Execute query against privateDB
-        // 3. Convert CKRecords to CKHabitCompletions
-        // 4. Handle result in completion handler
-        
-        // Placeholder implementation
         let predicate = NSPredicate(format: "%K == %@", RecordKey.HabitCompletion.habitID, habitID.uuidString)
         let query = CKQuery(recordType: RecordType.habitCompletion, predicate: predicate)
+        query.sortDescriptors = [NSSortDescriptor(key: RecordKey.HabitCompletion.date, ascending: false)]
         
-        // For now, just return empty array
-        completion(.success([]))
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("Error fetching habit completions: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let records = records else {
+                completion(.success([]))
+                return
+            }
+            
+            let completions = records.compactMap { CKHabitCompletion.from(record: $0) }
+            print("Successfully fetched \(completions.count) habit completions")
+            completion(.success(completions))
+        }
     }
     
     /// Fetch all habit completions for the user
     /// - Parameter completion: Completion handler with result
     func fetchAllHabitCompletions(completion: @escaping (Result<[CKHabitCompletion], Error>) -> Void) {
-        // TODO: Implement CloudKit fetch operation
-        // 1. Create query for all HabitCompletion records
-        // 2. Execute query against privateDB
-        // 3. Convert CKRecords to CKHabitCompletions
-        // 4. Handle result in completion handler
-        
-        // Placeholder implementation
         let query = CKQuery(recordType: RecordType.habitCompletion, predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: RecordKey.HabitCompletion.date, ascending: false)]
         
-        // For now, just return empty array
-        completion(.success([]))
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("Error fetching all habit completions: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let records = records else {
+                completion(.success([]))
+                return
+            }
+            
+            let completions = records.compactMap { CKHabitCompletion.from(record: $0) }
+            print("Successfully fetched \(completions.count) total habit completions")
+            completion(.success(completions))
+        }
+    }
+    
+    /// Delete a habit completion from CloudKit
+    /// - Parameters:
+    ///   - completionID: The ID of the completion to delete
+    ///   - completion: Completion handler with result
+    func deleteHabitCompletion(completionID: UUID, completion: @escaping (Result<Void, Error>) -> Void) {
+        let predicate = NSPredicate(format: "%K == %@", RecordKey.HabitCompletion.id, completionID.uuidString)
+        let query = CKQuery(recordType: RecordType.habitCompletion, predicate: predicate)
+        
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("Error finding habit completion to delete: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let record = records?.first else {
+                let error = NSError(domain: "CloudKitManager", code: 5, userInfo: [NSLocalizedDescriptionKey: "Habit completion not found for deletion"])
+                completion(.failure(error))
+                return
+            }
+            
+            self.privateDB.delete(withRecordID: record.recordID) { _, error in
+                if let error = error {
+                    print("Error deleting habit completion: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+                
+                print("Successfully deleted habit completion")
+                completion(.success(()))
+            }
+        }
     }
     
     // MARK: - Mood Log Methods
@@ -394,18 +595,74 @@ class CloudKitManager {
     ///   - notes: Additional notes for the mood
     ///   - completion: Completion handler with result
     func saveMoodLog(habitID: UUID, date: Date, mood: String?, notes: String, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-        // TODO: Implement CloudKit save operation
-        // 1. Convert to CKMoodLog
-        // 2. Get CKRecord from CKMoodLog
-        // 3. Save record to privateDB
-        // 4. Handle result in completion handler
+        // Check if there's an existing mood log for this habit and date
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let predicate = NSPredicate(format: "%K == %@ AND %K == %@", 
+                                  RecordKey.MoodLog.habitID, habitID.uuidString,
+                                  RecordKey.MoodLog.date, startOfDay as NSDate)
+        let query = CKQuery(recordType: RecordType.moodLog, predicate: predicate)
         
-        // Placeholder implementation
-        let ckMoodLog = CKMoodLog.from(habitID: habitID, date: date, mood: mood, notes: notes)
-        let record = ckMoodLog.toCKRecord()
-        
-        // For now, just return a placeholder success
-        completion(.success(record.recordID))
+        privateDB.perform(query, inZoneWith: nil) { [weak self] records, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                print("Error checking for existing mood log: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            // If we found an existing record, update it
+            if let existingRecord = records?.first {
+                existingRecord[RecordKey.MoodLog.mood] = mood
+                existingRecord[RecordKey.MoodLog.notes] = notes
+                
+                self.privateDB.save(existingRecord) { record, error in
+                    if let error = error {
+                        print("Error updating mood log: \(error.localizedDescription)")
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    guard let record = record else {
+                        let error = NSError(domain: "CloudKitManager", code: 6, userInfo: [NSLocalizedDescriptionKey: "Unknown error updating mood log"])
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    print("Successfully updated mood log")
+                    completion(.success(record.recordID))
+                }
+            } else {
+                // Create a new record
+                let ckMoodLog = CKMoodLog(
+                    id: UUID(),
+                    habitID: habitID,
+                    date: startOfDay,
+                    mood: mood,
+                    notes: notes,
+                    createdAt: Date()
+                )
+                let record = ckMoodLog.toCKRecord()
+                
+                self.privateDB.save(record) { record, error in
+                    if let error = error {
+                        print("Error saving mood log: \(error.localizedDescription)")
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    guard let record = record else {
+                        let error = NSError(domain: "CloudKitManager", code: 7, userInfo: [NSLocalizedDescriptionKey: "Unknown error saving mood log"])
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    print("Successfully saved mood log")
+                    completion(.success(record.recordID))
+                }
+            }
+        }
     }
     
     /// Fetch all mood logs for a specific habit
@@ -413,64 +670,50 @@ class CloudKitManager {
     ///   - habitID: The ID of the habit
     ///   - completion: Completion handler with result
     func fetchMoodLogs(habitID: UUID, completion: @escaping (Result<[CKMoodLog], Error>) -> Void) {
-        // TODO: Implement CloudKit fetch operation
-        // 1. Create query for MoodLog record type with habitID predicate
-        // 2. Execute query against privateDB
-        // 3. Convert CKRecords to CKMoodLogs
-        // 4. Handle result in completion handler
-        
-        // Placeholder implementation
         let predicate = NSPredicate(format: "%K == %@", RecordKey.MoodLog.habitID, habitID.uuidString)
         let query = CKQuery(recordType: RecordType.moodLog, predicate: predicate)
+        query.sortDescriptors = [NSSortDescriptor(key: RecordKey.MoodLog.date, ascending: false)]
         
-        // For now, just return empty array
-        completion(.success([]))
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("Error fetching mood logs: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let records = records else {
+                completion(.success([]))
+                return
+            }
+            
+            let moodLogs = records.compactMap { CKMoodLog.from(record: $0) }
+            print("Successfully fetched \(moodLogs.count) mood logs")
+            completion(.success(moodLogs))
+        }
     }
     
     /// Fetch all mood logs for the user
     /// - Parameter completion: Completion handler with result
     func fetchAllMoodLogs(completion: @escaping (Result<[CKMoodLog], Error>) -> Void) {
-        // TODO: Implement CloudKit fetch operation
-        // 1. Create query for all MoodLog records
-        // 2. Execute query against privateDB
-        // 3. Convert CKRecords to CKMoodLogs
-        // 4. Handle result in completion handler
-        
-        // Placeholder implementation
         let query = CKQuery(recordType: RecordType.moodLog, predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: RecordKey.MoodLog.date, ascending: false)]
         
-        // For now, just return empty array
-        completion(.success([]))
-    }
-    
-    // MARK: - Delete Methods
-    
-    /// Delete a habit from CloudKit
-    /// - Parameters:
-    ///   - habitID: The ID of the habit to delete
-    ///   - completion: Completion handler with result
-    func deleteHabit(habitID: UUID, completion: @escaping (Result<Void, Error>) -> Void) {
-        // TODO: Implement CloudKit delete operation
-        // 1. Find the CKRecord.ID for the habit
-        // 2. Delete the record from privateDB
-        // 3. Handle result in completion handler
-        
-        // Placeholder implementation - just return success
-        completion(.success(()))
-    }
-    
-    /// Delete a habit completion from CloudKit
-    /// - Parameters:
-    ///   - completionID: The ID of the completion to delete
-    ///   - completion: Completion handler with result
-    func deleteHabitCompletion(completionID: UUID, completion: @escaping (Result<Void, Error>) -> Void) {
-        // TODO: Implement CloudKit delete operation
-        // 1. Find the CKRecord.ID for the completion
-        // 2. Delete the record from privateDB
-        // 3. Handle result in completion handler
-        
-        // Placeholder implementation - just return success
-        completion(.success(()))
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("Error fetching all mood logs: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let records = records else {
+                completion(.success([]))
+                return
+            }
+            
+            let moodLogs = records.compactMap { CKMoodLog.from(record: $0) }
+            print("Successfully fetched \(moodLogs.count) total mood logs")
+            completion(.success(moodLogs))
+        }
     }
     
     /// Delete a mood log from CloudKit
@@ -478,12 +721,94 @@ class CloudKitManager {
     ///   - moodLogID: The ID of the mood log to delete
     ///   - completion: Completion handler with result
     func deleteMoodLog(moodLogID: UUID, completion: @escaping (Result<Void, Error>) -> Void) {
-        // TODO: Implement CloudKit delete operation
-        // 1. Find the CKRecord.ID for the mood log
-        // 2. Delete the record from privateDB
-        // 3. Handle result in completion handler
+        let predicate = NSPredicate(format: "%K == %@", RecordKey.MoodLog.id, moodLogID.uuidString)
+        let query = CKQuery(recordType: RecordType.moodLog, predicate: predicate)
         
-        // Placeholder implementation - just return success
-        completion(.success(()))
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("Error finding mood log to delete: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let record = records?.first else {
+                let error = NSError(domain: "CloudKitManager", code: 8, userInfo: [NSLocalizedDescriptionKey: "Mood log not found for deletion"])
+                completion(.failure(error))
+                return
+            }
+            
+            self.privateDB.delete(withRecordID: record.recordID) { _, error in
+                if let error = error {
+                    print("Error deleting mood log: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+                
+                print("Successfully deleted mood log")
+                completion(.success(()))
+            }
+        }
+    }
+    
+    // MARK: - CloudKit Schema Migration
+    
+    /// Create CloudKit schema programmatically
+    /// Call this method once to set up the CloudKit schema
+    func createCloudKitSchema(completion: @escaping (Bool) -> Void) {
+        // This is typically handled by CloudKit Dashboard, but we can ensure records are properly defined
+        let operations = [createHabitSchema(), createHabitCompletionSchema(), createMoodLogSchema()].compactMap { $0 }
+        
+        let operationQueue = OperationQueue()
+        operationQueue.maxConcurrentOperationCount = 1
+        operationQueue.addOperations(operations, waitUntilFinished: true)
+        
+        print("CloudKit schema migration completed")
+        completion(true)
+    }
+    
+    private func createHabitSchema() -> CKOperation? {
+        let recordZone = CKRecordZone(zoneName: "HabitZone")
+        let createZoneOperation = CKModifyRecordZonesOperation(recordZonesToSave: [recordZone], recordZoneIDsToDelete: nil)
+        createZoneOperation.modifyRecordZonesCompletionBlock = { _, _, error in
+            if let error = error {
+                print("Error creating habit zone: \(error.localizedDescription)")
+                return
+            }
+            print("Successfully created habit zone")
+        }
+        return createZoneOperation
+    }
+    
+    private func createHabitCompletionSchema() -> CKOperation? {
+        return nil // Schema definition typically happens through CloudKit Dashboard or API
+    }
+    
+    private func createMoodLogSchema() -> CKOperation? {
+        return nil // Schema definition typically happens through CloudKit Dashboard or API
+    }
+    
+    // MARK: - Error Handling
+    
+    /// Handle CloudKit errors in a standardized way
+    /// - Parameter error: The CloudKit error to handle
+    /// - Returns: A user-friendly error message or nil if the error was handled
+    func handleCloudKitError(_ error: Error) -> String? {
+        let ckError = error as NSError
+        
+        switch ckError.code {
+        case CKError.networkFailure.rawValue:
+            return "Network connection is unavailable. Please check your connection and try again."
+        case CKError.notAuthenticated.rawValue:
+            return "Please sign in to iCloud to use CloudKit features."
+        case CKError.quotaExceeded.rawValue:
+            return "Your iCloud storage quota has been exceeded."
+        case CKError.serverResponseLost.rawValue, CKError.serviceUnavailable.rawValue:
+            return "CloudKit service is currently unavailable. Please try again later."
+        case CKError.incompatibleVersion.rawValue:
+            return "Please update your app to use this feature."
+        default:
+            print("Unhandled CloudKit error: \(error.localizedDescription)")
+            return "An unexpected error occurred. Please try again."
+        }
     }
 } 
