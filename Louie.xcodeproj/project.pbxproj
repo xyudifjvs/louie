@@ -44,8 +44,8 @@
 		B55284642D9376D900F215D6 /* WeekdayProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552843E2D9376D900F215D6 /* WeekdayProgressView.swift */; };
 		B55284652D9376D900F215D6 /* Workout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284242D9376D900F215D6 /* Workout.swift */; };
 		B55284662D9376D900F215D6 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B55284262D9376D900F215D6 /* Preview Assets.xcassets */; };
-		B57BE6822D9396D600704AA4 /* HabitMoodEntryView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57BE6812D9396D600704AA4 /* HabitMoodEntryView 2.swift */; };
-		B57BE6842D9397C300704AA4 /* HabitTrackerViewModel 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57BE6832D9397C300704AA4 /* HabitTrackerViewModel 2.swift */; };
+		B57BE6822D9396D600704AA4 /* HabitMoodEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57BE6812D9396D600704AA4 /* HabitMoodEntryView.swift */; };
+		B57BE6842D9397C300704AA4 /* HabitTrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -87,8 +87,8 @@
 		B55284462D9376D900F215D6 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		B55284472D9376D900F215D6 /* ModularContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModularContentView.swift; sourceTree = "<group>"; };
 		B55284482D9376D900F215D6 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
-		B57BE6812D9396D600704AA4 /* HabitMoodEntryView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HabitMoodEntryView 2.swift"; sourceTree = "<group>"; };
-		B57BE6832D9397C300704AA4 /* HabitTrackerViewModel 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HabitTrackerViewModel 2.swift"; sourceTree = "<group>"; };
+		B57BE6812D9396D600704AA4 /* HabitMoodEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HabitMoodEntryView.swift"; sourceTree = "<group>"; };
+		B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HabitTrackerViewModel.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -149,7 +149,7 @@
 		B55284252D9376D900F215D6 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				B57BE6832D9397C300704AA4 /* HabitTrackerViewModel 2.swift */,
+				B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */,
 				B55284222D9376D900F215D6 /* Habit.swift */,
 				B55284232D9376D900F215D6 /* HabitViewModel.swift */,
 				B55284242D9376D900F215D6 /* Workout.swift */,
@@ -201,7 +201,7 @@
 		B552843F2D9376D900F215D6 /* Habit */ = {
 			isa = PBXGroup;
 			children = (
-				B57BE6812D9396D600704AA4 /* HabitMoodEntryView 2.swift */,
+				B57BE6812D9396D600704AA4 /* HabitMoodEntryView.swift */,
 				B55284312D9376D900F215D6 /* AchievementsPopup.swift */,
 				B55284322D9376D900F215D6 /* CreateHabitPopup.swift */,
 				B55284332D9376D900F215D6 /* CustomDaysSelector.swift */,
@@ -349,7 +349,7 @@
 				B552844F2D9376D900F215D6 /* CustomDaysSelector.swift in Sources */,
 				B55284502D9376D900F215D6 /* Color+Hex.swift in Sources */,
 				B55284512D9376D900F215D6 /* HabitCardView.swift in Sources */,
-				B57BE6822D9396D600704AA4 /* HabitMoodEntryView 2.swift in Sources */,
+				B57BE6822D9396D600704AA4 /* HabitMoodEntryView.swift in Sources */,
 				B55284522D9376D900F215D6 /* MainTabView.swift in Sources */,
 				B55284532D9376D900F215D6 /* SplashScreen.swift in Sources */,
 				B55284542D9376D900F215D6 /* DailyCheckInView.swift in Sources */,
@@ -361,7 +361,7 @@
 				B552845A2D9376D900F215D6 /* MoodTagPopup.swift in Sources */,
 				B552845B2D9376D900F215D6 /* Habit.swift in Sources */,
 				B552845C2D9376D900F215D6 /* HabitProgressCard.swift in Sources */,
-				B57BE6842D9397C300704AA4 /* HabitTrackerViewModel 2.swift in Sources */,
+				B57BE6842D9397C300704AA4 /* HabitTrackerViewModel.swift in Sources */,
 				B552845D2D9376D900F215D6 /* NutritionView.swift in Sources */,
 				B552845E2D9376D900F215D6 /* HabitStatsView.swift in Sources */,
 				B552845F2D9376D900F215D6 /* HabitTrackerView.swift in Sources */,
