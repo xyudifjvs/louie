@@ -250,7 +250,7 @@ public struct HabitStatsView: View {
     
     // Get best streak for this habit
     private func getBestStreak() -> Int {
-        return viewModel.calculateStreak(for: habit)
+        return viewModel.calculateStreak(for: habit.id)
     }
     
     // Get total days tracked for this habit (completed + not completed)
