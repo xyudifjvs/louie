@@ -15,6 +15,35 @@
 		B552443D2D92747E003EEAC9 /* LouieApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55244332D92747E003EEAC9 /* LouieApp.swift */; };
 		B552443E2D92747E003EEAC9 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552442E2D92747E003EEAC9 /* AIService.swift */; };
 		B552443F2D92747E003EEAC9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55244312D92747E003EEAC9 /* ContentView.swift */; };
+		B552844A2D9376D900F215D6 /* GamificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552842F2D9376D900F215D6 /* GamificationView.swift */; };
+		B552844B2D9376D900F215D6 /* BackgroundBlurView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284292D9376D900F215D6 /* BackgroundBlurView.swift */; };
+		B552844C2D9376D900F215D6 /* HabitCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284352D9376D900F215D6 /* HabitCalendarView.swift */; };
+		B552844D2D9376D900F215D6 /* HabitDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284372D9376D900F215D6 /* HabitDashboardView.swift */; };
+		B552844E2D9376D900F215D6 /* WorkoutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284442D9376D900F215D6 /* WorkoutsView.swift */; };
+		B552844F2D9376D900F215D6 /* CustomDaysSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284332D9376D900F215D6 /* CustomDaysSelector.swift */; };
+		B55284502D9376D900F215D6 /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552842A2D9376D900F215D6 /* Color+Hex.swift */; };
+		B55284512D9376D900F215D6 /* HabitCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284362D9376D900F215D6 /* HabitCardView.swift */; };
+		B55284522D9376D900F215D6 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284462D9376D900F215D6 /* MainTabView.swift */; };
+		B55284532D9376D900F215D6 /* SplashScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284482D9376D900F215D6 /* SplashScreen.swift */; };
+		B55284542D9376D900F215D6 /* DailyCheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552842D2D9376D900F215D6 /* DailyCheckInView.swift */; };
+		B55284552D9376D900F215D6 /* AchievementsPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284312D9376D900F215D6 /* AchievementsPopup.swift */; };
+		B55284562D9376D900F215D6 /* CreateHabitPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284322D9376D900F215D6 /* CreateHabitPopup.swift */; };
+		B55284572D9376D900F215D6 /* MonthSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552843C2D9376D900F215D6 /* MonthSelector.swift */; };
+		B55284582D9376D900F215D6 /* HabitGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284382D9376D900F215D6 /* HabitGridView.swift */; };
+		B55284592D9376D900F215D6 /* ModularContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284472D9376D900F215D6 /* ModularContentView.swift */; };
+		B552845A2D9376D900F215D6 /* MoodTagPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552843D2D9376D900F215D6 /* MoodTagPopup.swift */; };
+		B552845B2D9376D900F215D6 /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284222D9376D900F215D6 /* Habit.swift */; };
+		B552845C2D9376D900F215D6 /* HabitProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284392D9376D900F215D6 /* HabitProgressCard.swift */; };
+		B552845D2D9376D900F215D6 /* NutritionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284422D9376D900F215D6 /* NutritionView.swift */; };
+		B552845E2D9376D900F215D6 /* HabitStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552843A2D9376D900F215D6 /* HabitStatsView.swift */; };
+		B552845F2D9376D900F215D6 /* HabitTrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552843B2D9376D900F215D6 /* HabitTrackerView.swift */; };
+		B55284602D9376D900F215D6 /* EditHabitPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284342D9376D900F215D6 /* EditHabitPopup.swift */; };
+		B55284612D9376D900F215D6 /* ReorderHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552842B2D9376D900F215D6 /* ReorderHelpers.swift */; };
+		B55284622D9376D900F215D6 /* HabitViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284232D9376D900F215D6 /* HabitViewModel.swift */; };
+		B55284632D9376D900F215D6 /* HealthInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284402D9376D900F215D6 /* HealthInfoView.swift */; };
+		B55284642D9376D900F215D6 /* WeekdayProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B552843E2D9376D900F215D6 /* WeekdayProgressView.swift */; };
+		B55284652D9376D900F215D6 /* Workout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284242D9376D900F215D6 /* Workout.swift */; };
+		B55284662D9376D900F215D6 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B55284262D9376D900F215D6 /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +56,35 @@
 		B55244332D92747E003EEAC9 /* LouieApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LouieApp.swift; sourceTree = "<group>"; };
 		B55244342D92747E003EEAC9 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		B55244362D92747E003EEAC9 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		B55284222D9376D900F215D6 /* Habit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Habit.swift; sourceTree = "<group>"; };
+		B55284232D9376D900F215D6 /* HabitViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitViewModel.swift; sourceTree = "<group>"; };
+		B55284242D9376D900F215D6 /* Workout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workout.swift; sourceTree = "<group>"; };
+		B55284262D9376D900F215D6 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		B55284292D9376D900F215D6 /* BackgroundBlurView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundBlurView.swift; sourceTree = "<group>"; };
+		B552842A2D9376D900F215D6 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
+		B552842B2D9376D900F215D6 /* ReorderHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderHelpers.swift; sourceTree = "<group>"; };
+		B552842D2D9376D900F215D6 /* DailyCheckInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCheckInView.swift; sourceTree = "<group>"; };
+		B552842F2D9376D900F215D6 /* GamificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamificationView.swift; sourceTree = "<group>"; };
+		B55284312D9376D900F215D6 /* AchievementsPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsPopup.swift; sourceTree = "<group>"; };
+		B55284322D9376D900F215D6 /* CreateHabitPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateHabitPopup.swift; sourceTree = "<group>"; };
+		B55284332D9376D900F215D6 /* CustomDaysSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomDaysSelector.swift; sourceTree = "<group>"; };
+		B55284342D9376D900F215D6 /* EditHabitPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditHabitPopup.swift; sourceTree = "<group>"; };
+		B55284352D9376D900F215D6 /* HabitCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitCalendarView.swift; sourceTree = "<group>"; };
+		B55284362D9376D900F215D6 /* HabitCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitCardView.swift; sourceTree = "<group>"; };
+		B55284372D9376D900F215D6 /* HabitDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitDashboardView.swift; sourceTree = "<group>"; };
+		B55284382D9376D900F215D6 /* HabitGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitGridView.swift; sourceTree = "<group>"; };
+		B55284392D9376D900F215D6 /* HabitProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitProgressCard.swift; sourceTree = "<group>"; };
+		B552843A2D9376D900F215D6 /* HabitStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitStatsView.swift; sourceTree = "<group>"; };
+		B552843B2D9376D900F215D6 /* HabitTrackerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTrackerView.swift; sourceTree = "<group>"; };
+		B552843C2D9376D900F215D6 /* MonthSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthSelector.swift; sourceTree = "<group>"; };
+		B552843D2D9376D900F215D6 /* MoodTagPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodTagPopup.swift; sourceTree = "<group>"; };
+		B552843E2D9376D900F215D6 /* WeekdayProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekdayProgressView.swift; sourceTree = "<group>"; };
+		B55284402D9376D900F215D6 /* HealthInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthInfoView.swift; sourceTree = "<group>"; };
+		B55284422D9376D900F215D6 /* NutritionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionView.swift; sourceTree = "<group>"; };
+		B55284442D9376D900F215D6 /* WorkoutsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutsView.swift; sourceTree = "<group>"; };
+		B55284462D9376D900F215D6 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		B55284472D9376D900F215D6 /* ModularContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModularContentView.swift; sourceTree = "<group>"; };
+		B55284482D9376D900F215D6 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,6 +101,11 @@
 		B52DF4BC2D7D47C2002D19E4 = {
 			isa = PBXGroup;
 			children = (
+				B55284252D9376D900F215D6 /* Models */,
+				B55284272D9376D900F215D6 /* Preview Content */,
+				B55284282D9376D900F215D6 /* Services */,
+				B552842C2D9376D900F215D6 /* Utilities */,
+				B55284492D9376D900F215D6 /* Views */,
 				B52DF4C62D7D47C2002D19E4 /* Products */,
 				B552442E2D92747E003EEAC9 /* AIService.swift */,
 				B552442F2D92747E003EEAC9 /* Assets.xcassets */,
@@ -77,6 +140,118 @@
 			children = (
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		B55284252D9376D900F215D6 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B55284222D9376D900F215D6 /* Habit.swift */,
+				B55284232D9376D900F215D6 /* HabitViewModel.swift */,
+				B55284242D9376D900F215D6 /* Workout.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		B55284272D9376D900F215D6 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				B55284262D9376D900F215D6 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		B55284282D9376D900F215D6 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		B552842C2D9376D900F215D6 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				B55284292D9376D900F215D6 /* BackgroundBlurView.swift */,
+				B552842A2D9376D900F215D6 /* Color+Hex.swift */,
+				B552842B2D9376D900F215D6 /* ReorderHelpers.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		B552842E2D9376D900F215D6 /* DailyCheckIn */ = {
+			isa = PBXGroup;
+			children = (
+				B552842D2D9376D900F215D6 /* DailyCheckInView.swift */,
+			);
+			path = DailyCheckIn;
+			sourceTree = "<group>";
+		};
+		B55284302D9376D900F215D6 /* Gamification */ = {
+			isa = PBXGroup;
+			children = (
+				B552842F2D9376D900F215D6 /* GamificationView.swift */,
+			);
+			path = Gamification;
+			sourceTree = "<group>";
+		};
+		B552843F2D9376D900F215D6 /* Habit */ = {
+			isa = PBXGroup;
+			children = (
+				B55284312D9376D900F215D6 /* AchievementsPopup.swift */,
+				B55284322D9376D900F215D6 /* CreateHabitPopup.swift */,
+				B55284332D9376D900F215D6 /* CustomDaysSelector.swift */,
+				B55284342D9376D900F215D6 /* EditHabitPopup.swift */,
+				B55284352D9376D900F215D6 /* HabitCalendarView.swift */,
+				B55284362D9376D900F215D6 /* HabitCardView.swift */,
+				B55284372D9376D900F215D6 /* HabitDashboardView.swift */,
+				B55284382D9376D900F215D6 /* HabitGridView.swift */,
+				B55284392D9376D900F215D6 /* HabitProgressCard.swift */,
+				B552843A2D9376D900F215D6 /* HabitStatsView.swift */,
+				B552843B2D9376D900F215D6 /* HabitTrackerView.swift */,
+				B552843C2D9376D900F215D6 /* MonthSelector.swift */,
+				B552843D2D9376D900F215D6 /* MoodTagPopup.swift */,
+				B552843E2D9376D900F215D6 /* WeekdayProgressView.swift */,
+			);
+			path = Habit;
+			sourceTree = "<group>";
+		};
+		B55284412D9376D900F215D6 /* Health */ = {
+			isa = PBXGroup;
+			children = (
+				B55284402D9376D900F215D6 /* HealthInfoView.swift */,
+			);
+			path = Health;
+			sourceTree = "<group>";
+		};
+		B55284432D9376D900F215D6 /* Nutrition */ = {
+			isa = PBXGroup;
+			children = (
+				B55284422D9376D900F215D6 /* NutritionView.swift */,
+			);
+			path = Nutrition;
+			sourceTree = "<group>";
+		};
+		B55284452D9376D900F215D6 /* Workouts */ = {
+			isa = PBXGroup;
+			children = (
+				B55284442D9376D900F215D6 /* WorkoutsView.swift */,
+			);
+			path = Workouts;
+			sourceTree = "<group>";
+		};
+		B55284492D9376D900F215D6 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B552842E2D9376D900F215D6 /* DailyCheckIn */,
+				B55284302D9376D900F215D6 /* Gamification */,
+				B552843F2D9376D900F215D6 /* Habit */,
+				B55284412D9376D900F215D6 /* Health */,
+				B55284432D9376D900F215D6 /* Nutrition */,
+				B55284452D9376D900F215D6 /* Workouts */,
+				B55284462D9376D900F215D6 /* MainTabView.swift */,
+				B55284472D9376D900F215D6 /* ModularContentView.swift */,
+				B55284482D9376D900F215D6 /* SplashScreen.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -145,6 +320,7 @@
 				B55244392D92747E003EEAC9 /* CHANGELOG.md in Resources */,
 				B552443A2D92747E003EEAC9 /* Context.md in Resources */,
 				B552443B2D92747E003EEAC9 /* Preview Assets.xcassets in Resources */,
+				B55284662D9376D900F215D6 /* Preview Assets.xcassets in Resources */,
 				B552443C2D92747E003EEAC9 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -159,6 +335,34 @@
 				B552443D2D92747E003EEAC9 /* LouieApp.swift in Sources */,
 				B552443E2D92747E003EEAC9 /* AIService.swift in Sources */,
 				B552443F2D92747E003EEAC9 /* ContentView.swift in Sources */,
+				B552844A2D9376D900F215D6 /* GamificationView.swift in Sources */,
+				B552844B2D9376D900F215D6 /* BackgroundBlurView.swift in Sources */,
+				B552844C2D9376D900F215D6 /* HabitCalendarView.swift in Sources */,
+				B552844D2D9376D900F215D6 /* HabitDashboardView.swift in Sources */,
+				B552844E2D9376D900F215D6 /* WorkoutsView.swift in Sources */,
+				B552844F2D9376D900F215D6 /* CustomDaysSelector.swift in Sources */,
+				B55284502D9376D900F215D6 /* Color+Hex.swift in Sources */,
+				B55284512D9376D900F215D6 /* HabitCardView.swift in Sources */,
+				B55284522D9376D900F215D6 /* MainTabView.swift in Sources */,
+				B55284532D9376D900F215D6 /* SplashScreen.swift in Sources */,
+				B55284542D9376D900F215D6 /* DailyCheckInView.swift in Sources */,
+				B55284552D9376D900F215D6 /* AchievementsPopup.swift in Sources */,
+				B55284562D9376D900F215D6 /* CreateHabitPopup.swift in Sources */,
+				B55284572D9376D900F215D6 /* MonthSelector.swift in Sources */,
+				B55284582D9376D900F215D6 /* HabitGridView.swift in Sources */,
+				B55284592D9376D900F215D6 /* ModularContentView.swift in Sources */,
+				B552845A2D9376D900F215D6 /* MoodTagPopup.swift in Sources */,
+				B552845B2D9376D900F215D6 /* Habit.swift in Sources */,
+				B552845C2D9376D900F215D6 /* HabitProgressCard.swift in Sources */,
+				B552845D2D9376D900F215D6 /* NutritionView.swift in Sources */,
+				B552845E2D9376D900F215D6 /* HabitStatsView.swift in Sources */,
+				B552845F2D9376D900F215D6 /* HabitTrackerView.swift in Sources */,
+				B55284602D9376D900F215D6 /* EditHabitPopup.swift in Sources */,
+				B55284612D9376D900F215D6 /* ReorderHelpers.swift in Sources */,
+				B55284622D9376D900F215D6 /* HabitViewModel.swift in Sources */,
+				B55284632D9376D900F215D6 /* HealthInfoView.swift in Sources */,
+				B55284642D9376D900F215D6 /* WeekdayProgressView.swift in Sources */,
+				B55284652D9376D900F215D6 /* Workout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

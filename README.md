@@ -65,16 +65,6 @@ The tone is casual and friendly, inspired by a helpful dog companion — with pr
 | Notifications      | UserNotifications            |
 | Design             | Dark UI + Gradient Styles    |
 
-### App Directory (Current Setup)
-```
-~/Documents/louie
-├── Louie.xcodeproj
-├── Assets.xcassets
-├── ContentView.swift
-├── LouieApp.swift
-├── README.md
-└── ...
-```
 
 ---
 

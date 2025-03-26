@@ -1,0 +1,31 @@
+# Louie App - Setup Instructions
+
+To make these changes visible in Xcode, please follow these steps:
+
+1. Open Xcode and open the Louie.xcodeproj project
+2. In the Xcode Project Navigator, right-click and choose 'Add Files to "Louie"...'
+3. Navigate to /Users/carson/Documents/louie/
+4. Select the following folders:
+   - Models
+   - Views
+   - Utilities
+5. Make sure 'Create groups' is selected (not folder references)
+6. Ensure 'Add to targets: Louie' is checked
+7. Click 'Add'
+8. Clean the build folder (Product > Clean Build Folder)
+9. Close and reopen Xcode
+
+## Project Structure
+The project now uses a flat directory structure:
+- /Users/carson/Documents/louie/ (root)
+  - Models/ (habit models and view models)
+  - Views/ (all UI components)
+    - Habit/ (habit-related views)
+    - Health/ (health-related views)
+    - etc.
+  - Utilities/ (helper classes and extensions)
+
+## New Features
+- HabitStatsView: A detailed statistics view for each habit
+  - Accessible by tapping on habit cards in the calendar view
+  - Shows completion stats, mood frequency, and streaks 

@@ -29,3 +29,24 @@ All notable changes to this project will be documented in this file.
 • Removed mood emoji display from habit cards while maintaining underlying data structures.
 • Improved drag-to-reorder experience with more responsive animations and visual feedback.
 • Removed reminder time input fields from habit creation and editing screens.
+
+## Unreleased
+
+### Added
+- Added HabitStatsView to display detailed statistics for each habit
+  - Shows total completions, best streaks, and mood tags frequency
+  - Includes a monthly completion chart to track habit consistency
+  - Available by tapping on habit cards in the calendar view
+  - Provides visual insights through bar charts and stat cards
+
+### Changed
+- Modernized navigation system using NavigationStack for iOS 16+ and NavigationView with StackNavigationViewStyle for older versions
+- Fixed navigation issues to ensure proper transition between views
+- Added transition animations for smoother user experience
+- Implemented proper access control for view components
+- Cleaned up project structure by flattening directory hierarchy
+- Fixed duplicate folder issues for improved stability
+- Modularized the codebase by splitting ContentView.swift into separate files
+- Created Models folder for Habit, HabitViewModel, and Workout
+- Created Views folder with dedicated subfolders for Habit, Health, Nutrition, Workouts, DailyCheckIn, and Gamification
+- Created Utilities folder for helper components like Color+Hex, ReorderHelpers, and BackgroundBlurView

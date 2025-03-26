@@ -1,0 +1,41 @@
+# How to Fix the Xcode Project Issues
+
+The current error is happening because Xcode has incorrect file references in its project file. Here's how to fix it:
+
+## Fix Steps in Xcode:
+
+1. Open Xcode and select your Louie.xcodeproj
+
+2. In the Project Navigator (left sidebar), look for any folders with the path "Louie/Views" (not just "Views")
+
+3. If you find any duplicated folder references:
+   - Right-click on them
+   - Select "Delete"
+   - Choose "Remove Reference" (not "Move to Trash")
+
+4. Also check for duplicate references to:
+   - HabitStatsView.swift
+   - HabitProgressCard.swift
+
+5. Once all duplicate references are removed:
+   - Product > Clean Build Folder
+   - Quit and restart Xcode
+
+6. If you're still having issues, try:
+   - In Finder, delete the derived data folder: ~/Library/Developer/Xcode/DerivedData/Louie-*
+   - Restart Xcode and rebuild
+
+## Quick Solution for Now:
+
+For now, we've simplified the HabitProgressCard to not use NavigationLink until we can properly fix the project references. This is why tapping the card will just print a message instead of navigating to the stats view.
+
+After you fix the Xcode project references, you can update the HabitProgressCard.swift back to use NavigationLink with:
+
+```swift
+NavigationLink(destination: HabitStatsView(habit: habit, viewModel: habitTrackerViewModel)
+    .transition(.move(edge: .bottom))
+    .animation(.easeInOut, value: true)) {
+    // Card content
+}
+.buttonStyle(PlainButtonStyle())
+``` 

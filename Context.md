@@ -169,3 +169,10 @@ All future prompts should:
 ⸻
 
 Last updated: March 24, 2025
+
+
+### Content Structure
+
+- `ContentView.swift`: Thin wrapper that displays `ModularContentView`.
+- `ModularContentView.swift`: Core layout and logic for the splash screen and tab navigation.
+- All future feature UIs (e.g., Habit Tracker, Health Info, Check-In) are organized as subviews or modules imported into `ModularContentView`.

@@ -1,0 +1,54 @@
+# Troubleshooting Navigation Issues in Louie App
+
+## Current Setup
+The navigation structure in the app is:
+- MainTabView (with NavigationStack/View for each tab)
+  - HabitTrackerView
+    - HabitDashboardView
+      - NavigationLink to HabitCalendarView
+        - HabitProgressCard (with NavigationLink to HabitStatsView)
+
+## If Navigation Still Doesn't Work
+
+1. **Rebuild the project**
+   - Clean build folder (Product > Clean Build Folder)
+   - Restart Xcode
+   - Build and run
+
+2. **Check View Hierarchy**
+   - Ensure that NavigationLinks are within a NavigationStack/View
+   - Verify that HabitCalendarView is properly navigated to
+   - Check that the HabitStatsView is properly initialized
+
+3. **Try Manual Navigation**
+   - If the NavigationLink still doesn't work, you can try using this programmatic approach:
+   ```swift
+   @State private var showingStats = false
+   @State private var selectedHabit: Habit? = nil
+   
+   // In HabitProgressCard:
+   .onTapGesture {
+       selectedHabit = habit
+       showingStats = true
+   }
+   
+   // Then in HabitCalendarView, add:
+   .sheet(isPresented: $showingStats) {
+       if let habit = selectedHabit {
+           HabitStatsView(habit: habit, viewModel: habitTrackerViewModel)
+       }
+   }
+   ```
+
+4. **Check for Access Level Issues**
+   - Make sure HabitStatsView and its initializer have appropriate access levels
+   - If using `public` access, ensure parameter types also have `public` access
+
+5. **Check for Layout Issues**
+   - Try adding a border or background color to the NavigationLink to ensure it's rendering correctly
+   - Ensure the view is not being clipped or hidden
+
+6. **Debug Logging**
+   - Add print statements in the tapped handler and NavigationLink destination to trace execution
+
+Remember that navigation in SwiftUI can sometimes be tricky with nested views. If all else fails, consider using a simpler navigation approach like sheets or full-screen covers temporarily. 
