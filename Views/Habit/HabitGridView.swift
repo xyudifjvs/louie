@@ -1,30 +1,5 @@
 import SwiftUI
 
-/// Represents the completion status of a habit for a specific day
-enum CompletionStatus: Int, Codable {
-    case noData = 0      // Not logged (gray)
-    case completed = 1   // Completed (green)
-    case notCompleted = 2 // Not completed (red)
-    
-    /// Returns the next status in the cycle: noData -> completed -> notCompleted -> noData
-    var next: CompletionStatus {
-        switch self {
-        case .noData: return .completed
-        case .completed: return .notCompleted
-        case .notCompleted: return .noData
-        }
-    }
-    
-    /// Returns the color associated with this status
-    var color: Color {
-        switch self {
-        case .noData: return Color.gray.opacity(0.3)
-        case .completed: return Color.green.opacity(0.8)
-        case .notCompleted: return Color.red.opacity(0.8)
-        }
-    }
-}
-
 /// A calendar-style grid view for displaying and updating habit completion status
 struct HabitGridView: View {
     // MARK: - Properties
@@ -123,8 +98,8 @@ struct HabitGridView: View {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         
-        // Look up the status in the habit's completions dictionary
-        return viewModel.getCompletionStatus(for: habit, on: startOfDay)
+        // Call the new method on the view model
+        return viewModel.getCompletionStatus(forHabit: habit.id, on: startOfDay)
     }
     
     /// Toggles the completion status for a habit on a specific date
@@ -134,7 +109,14 @@ struct HabitGridView: View {
         let startOfDay = calendar.startOfDay(for: date)
         
         // Update the status in the view model
-        viewModel.toggleCompletionStatus(for: habit, on: startOfDay)
+        if let index = viewModel.habits.firstIndex(where: { $0.id == habit.id }) {
+            let currentStatus = completionStatus(for: date)
+            if currentStatus == .completed {
+                viewModel.updateHabitCompletion(habitId: habit.id, status: .notCompleted)
+            } else {
+                viewModel.updateHabitCompletion(habitId: habit.id, status: .completed)
+            }
+        }
     }
 }
 

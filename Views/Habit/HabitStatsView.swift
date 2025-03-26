@@ -5,6 +5,11 @@ public struct HabitStatsView: View {
     let habit: Habit
     @ObservedObject var viewModel: HabitTrackerViewModel
     
+    // Computed property to access completions safely
+    private var completionsForHabit: [Date: CompletionStatus] {
+        return viewModel.completions[habit.id] ?? [:]
+    }
+    
     // Grid layout for stat cards
     private var columns: [GridItem] = [
         GridItem(.flexible(), spacing: 16),
@@ -238,11 +243,9 @@ public struct HabitStatsView: View {
     // Get total number of completions for this habit
     private func getTotalCompletions() -> Int {
         var count = 0
-        if let habitCompletions = viewModel.completions[habit.id] {
-            for (_, status) in habitCompletions {
-                if status == .completed {
-                    count += 1
-                }
+        for (_, status) in completionsForHabit {
+            if status == .completed {
+                count += 1
             }
         }
         return count
@@ -250,15 +253,15 @@ public struct HabitStatsView: View {
     
     // Get best streak for this habit
     private func getBestStreak() -> Int {
-        return viewModel.calculateStreak(for: habit.id)
+        if let index = viewModel.habits.firstIndex(where: { $0.id == habit.id }) {
+            return viewModel.calculateStreak(forHabit: index)
+        }
+        return 0
     }
     
     // Get total days tracked for this habit (completed + not completed)
     private func getDaysTracked() -> Int {
-        if let habitCompletions = viewModel.completions[habit.id] {
-            return habitCompletions.count
-        }
-        return 0
+        return completionsForHabit.count
     }
     
     // Get mood frequency data
@@ -279,14 +282,10 @@ public struct HabitStatsView: View {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "MMM"
         
-        let calendar = Calendar.current
-        
-        if let habitCompletions = viewModel.completions[habit.id] {
-            for (date, status) in habitCompletions {
-                if status == .completed {
-                    let month = dateFormatter.string(from: date)
-                    monthlyCounts[month, default: 0] += 1
-                }
+        for (date, status) in completionsForHabit {
+            if status == .completed {
+                let month = dateFormatter.string(from: date)
+                monthlyCounts[month, default: 0] += 1
             }
         }
         
@@ -325,6 +324,14 @@ public struct HabitStatsView: View {
         case .sad: return .blue
         case .angry: return .red
         }
+    }
+    
+    // Calculate completion rate for each month
+    func getHabitStatusForMonth(_ date: Date) -> CompletionStatus {
+        if let habitIndex = viewModel.habits.firstIndex(where: { $0.id == habit.id }) {
+            return viewModel.getCompletionStatus(forHabit: habitIndex, on: date)
+        }
+        return .noData
     }
 }
 

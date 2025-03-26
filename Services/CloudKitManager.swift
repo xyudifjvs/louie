@@ -1,5 +1,6 @@
 import Foundation
 import CloudKit
+import SwiftUI
 
 // MARK: - CloudKit Record Type Constants
 struct RecordType {
@@ -139,11 +140,21 @@ struct CKHabitCompletion {
     
     // Create from completion status
     static func from(habitID: UUID, date: Date, status: CompletionStatus) -> CKHabitCompletion {
+        let statusString: String
+        switch status {
+        case CompletionStatus.completed:
+            statusString = "completed"
+        case CompletionStatus.notCompleted:
+            statusString = "notCompleted"
+        case CompletionStatus.noData:
+            statusString = "noData"
+        }
+        
         return CKHabitCompletion(
             id: UUID(),
             habitID: habitID,
             date: date,
-            status: status.rawValue,
+            status: statusString,
             createdAt: Date()
         )
     }
@@ -475,31 +486,4 @@ class CloudKitManager {
         // Placeholder implementation - just return success
         completion(.success(()))
     }
-}
-
-// MARK: - Extension to support CompletionStatus in CloudKit
-extension CompletionStatus {
-    var rawValue: String {
-        switch self {
-        case .completed: return "completed"
-        case .notCompleted: return "notCompleted"
-        case .noData: return "noData"
-        }
-    }
-    
-    init?(rawValue: String) {
-        switch rawValue {
-        case "completed": self = .completed
-        case "notCompleted": self = .notCompleted
-        case "noData": self = .noData
-        default: return nil
-        }
-    }
-}
-
-// Note: We need this enum since it's referenced in the code, but not defined in the files we examined
-enum CompletionStatus {
-    case completed
-    case notCompleted
-    case noData
 } 

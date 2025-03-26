@@ -10,6 +10,7 @@ struct Habit: Identifiable, Codable {
     var frequency: HabitFrequency = .daily
     var customDays: [Int] = [] // 1 = Monday, 2 = Tuesday, etc.
     var emoji: String = "📝" // Default emoji
+    var streak: Int = 0 // Current streak count
     
     // Mood tracking
     var moodEntries: [Date: MoodEntry] = [:]

@@ -57,23 +57,21 @@ class HabitTrackerViewModel: ObservableObject {
     }
     
     // Function to get completion status for a habit on a specific date
-    func getCompletionStatus(for habit: Habit, on date: Date) -> CompletionStatus {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: date)
-        
-        // Check in completions dictionary first
-        if let habitCompletions = completions[habit.id],
-           let status = habitCompletions[startOfDay] {
-            return status
+    func getCompletionStatus(forHabit index: Int, on date: Date) -> CompletionStatus {
+        guard index >= 0 && index < habits.count else {
+            return CompletionStatus.noData
         }
         
-        // Check in old progress format as fallback
+        let habit = habits[index]
+        let calendar = Calendar.current
+        
         let day = calendar.component(.day, from: date)
         if let isCompleted = habit.progress[day] {
-            return isCompleted ? .completed : .notCompleted
+            return isCompleted ? CompletionStatus.completed : CompletionStatus.notCompleted
         }
         
-        return .noData
+        // No data for this date
+        return CompletionStatus.noData
     }
     
     func reorderHabits(fromIndex: Int, toIndex: Int) {
@@ -197,13 +195,12 @@ class HabitTrackerViewModel: ObservableObject {
     }
     
     // Function to calculate streak for a habit ID
-    func calculateStreak(for habitId: UUID) -> Int {
-        guard let habit = habits.first(where: { $0.id == habitId }) else {
+    func calculateStreak(forHabit index: Int) -> Int {
+        guard index >= 0 && index < habits.count else {
             return 0
         }
         
-        // Simple placeholder implementation - in a real app, this would be more sophisticated
-        // and would account for habit frequency settings
+        let habit = habits[index]
         var streak = 0
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -211,9 +208,9 @@ class HabitTrackerViewModel: ObservableObject {
         var currentDate = today
         
         while true {
-            let status = getCompletionStatus(for: habit, on: currentDate)
+            let status = getCompletionStatus(forHabit: index, on: currentDate)
             
-            if status == .completed {
+            if status == CompletionStatus.completed {
                 streak += 1
             } else {
                 break // Break on first non-completed day
@@ -232,6 +229,15 @@ class HabitTrackerViewModel: ObservableObject {
         return streak
     }
     
+    // Function to calculate streak for a habit UUID
+    func calculateStreak(for habitId: UUID) -> Int {
+        guard let index = habits.firstIndex(where: { $0.id == habitId }) else {
+            return 0
+        }
+        
+        return calculateStreak(forHabit: index)
+    }
+    
     // Log habit completion status for a specific day
     func logHabitCompletion(_ habitId: UUID, day: Int, isCompleted: Bool) {
         if let index = habits.firstIndex(where: { $0.id == habitId }) {
@@ -246,10 +252,64 @@ class HabitTrackerViewModel: ObservableObject {
                 completions[habitId] = [:]
             }
             
-            completions[habitId]?[today] = isCompleted ? .completed : .notCompleted
+            completions[habitId]?[today] = isCompleted ? CompletionStatus.completed : CompletionStatus.notCompleted
             
             // Save changes
             saveHabits()
         }
+    }
+    
+    func updateHabitCompletion(habitId: UUID, status: CompletionStatus) {
+        guard let index = habits.firstIndex(where: { $0.id == habitId }) else { return }
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        // Update the habit's progress
+        if status == CompletionStatus.completed {
+            habits[index].completed = true
+            
+            // Update streak
+            habits[index].streak = calculateStreak(forHabit: index)
+        } else {
+            habits[index].completed = false
+        }
+        
+        // Update completions dictionary for consistency
+        if completions[habitId] == nil {
+            completions[habitId] = [:]
+        }
+        
+        completions[habitId]?[today] = status
+        
+        // Save changes
+        saveHabits()
+    }
+    
+    func updateHabit(at index: Int, isCompleted: Bool) {
+        guard index >= 0 && index < habits.count else { return }
+        
+        habits[index].completed.toggle()
+        let day = Calendar.current.component(.day, from: Date())
+        habits[index].progress[day] = habits[index].completed
+        
+        // Update completions dictionary for consistency
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let status: CompletionStatus = habits[index].completed ? CompletionStatus.completed : CompletionStatus.notCompleted
+        
+        // Ensure there's a dictionary for this habit
+        if completions[habits[index].id] == nil {
+            completions[habits[index].id] = [:]
+        }
+        
+        // Update the status for today
+        completions[habits[index].id]?[today] = status
+        
+        // Update the streak
+        habits[index].streak = calculateStreak(forHabit: index)
+        
+        // Save changes
+        saveHabits()
     }
 } 

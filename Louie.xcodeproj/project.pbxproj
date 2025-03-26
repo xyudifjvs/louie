@@ -46,6 +46,8 @@
 		B55284662D9376D900F215D6 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B55284262D9376D900F215D6 /* Preview Assets.xcassets */; };
 		B57BE6822D9396D600704AA4 /* HabitMoodEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57BE6812D9396D600704AA4 /* HabitMoodEntryView.swift */; };
 		B57BE6842D9397C300704AA4 /* HabitTrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */; };
+		B5CB52C52D93C44F009DC977 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CB52C42D93C44F009DC977 /* CloudKitManager.swift */; };
+		B5CB52D42D93D1E1009DC977 /* CompletionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CB52D22D93D1E1009DC977 /* CompletionStatus.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -87,8 +89,10 @@
 		B55284462D9376D900F215D6 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		B55284472D9376D900F215D6 /* ModularContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModularContentView.swift; sourceTree = "<group>"; };
 		B55284482D9376D900F215D6 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
-		B57BE6812D9396D600704AA4 /* HabitMoodEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HabitMoodEntryView.swift"; sourceTree = "<group>"; };
-		B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HabitTrackerViewModel.swift"; sourceTree = "<group>"; };
+		B57BE6812D9396D600704AA4 /* HabitMoodEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitMoodEntryView.swift; sourceTree = "<group>"; };
+		B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTrackerViewModel.swift; sourceTree = "<group>"; };
+		B5CB52C42D93C44F009DC977 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
+		B5CB52D22D93D1E1009DC977 /* CompletionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionStatus.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,6 +109,7 @@
 		B52DF4BC2D7D47C2002D19E4 = {
 			isa = PBXGroup;
 			children = (
+				B5CB52D32D93D1E1009DC977 /* Types */,
 				B55284252D9376D900F215D6 /* Models */,
 				B55284272D9376D900F215D6 /* Preview Content */,
 				B55284282D9376D900F215D6 /* Services */,
@@ -168,6 +173,7 @@
 		B55284282D9376D900F215D6 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B5CB52C42D93C44F009DC977 /* CloudKitManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -260,6 +266,14 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		B5CB52D32D93D1E1009DC977 /* Types */ = {
+			isa = PBXGroup;
+			children = (
+				B5CB52D22D93D1E1009DC977 /* CompletionStatus.swift */,
+			);
+			path = Types;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -339,9 +353,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				B552443D2D92747E003EEAC9 /* LouieApp.swift in Sources */,
+				B5CB52D42D93D1E1009DC977 /* CompletionStatus.swift in Sources */,
 				B552443E2D92747E003EEAC9 /* AIService.swift in Sources */,
 				B552443F2D92747E003EEAC9 /* ContentView.swift in Sources */,
 				B552844A2D9376D900F215D6 /* GamificationView.swift in Sources */,
+				B5CB52C52D93C44F009DC977 /* CloudKitManager.swift in Sources */,
 				B552844B2D9376D900F215D6 /* BackgroundBlurView.swift in Sources */,
 				B552844C2D9376D900F215D6 /* HabitCalendarView.swift in Sources */,
 				B552844D2D9376D900F215D6 /* HabitDashboardView.swift in Sources */,

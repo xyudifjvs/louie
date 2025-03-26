@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import Combine
 
@@ -14,30 +15,80 @@ class HabitViewModel: ObservableObject {
     // MARK: - Methods
     
     /// Returns the completion status for a habit on a specific date
-    func getCompletionStatus(for habit: Habit, on date: Date) -> CompletionStatus {
-        guard let habitCompletions = completions[habit.id] else {
-            return .noData
+    func getStatus(for habit: Habit, on date: Date) -> CompletionStatus {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        
+        // Check in completions dictionary
+        if let habitCompletions = completions[habit.id] {
+            return habitCompletions[startOfDay] ?? CompletionStatus.noData
         }
         
-        return habitCompletions[date] ?? .noData
+        return CompletionStatus.noData
+    }
+    
+    /// Returns the completion status for a habit ID on a specific date
+    func getCompletionStatus(forHabit habitId: UUID, on date: Date) -> CompletionStatus {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        
+        // Check in completions dictionary
+        if let habitCompletions = completions[habitId] {
+            return habitCompletions[startOfDay] ?? CompletionStatus.noData
+        }
+        
+        return CompletionStatus.noData
+    }
+    
+    /// Updates the completion status for a habit
+    func updateHabitCompletion(habitId: UUID, status: CompletionStatus) {
+        guard let index = habits.firstIndex(where: { $0.id == habitId }) else { return }
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        // Update the habit's progress
+        if status == .completed {
+            habits[index].completed = true
+        } else {
+            habits[index].completed = false
+        }
+        
+        // Update completions dictionary
+        if completions[habitId] == nil {
+            completions[habitId] = [:]
+        }
+        
+        completions[habitId]?[today] = status
+        
+        // Save the updated completions
+        saveCompletions()
     }
     
     /// Toggles the completion status for a habit on a specific date
     func toggleCompletionStatus(for habit: Habit, on date: Date) {
-        // Ensure we have a dictionary for this habit
+        guard let index = habits.firstIndex(where: { $0.id == habit.id }) else { return }
+        
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        
+        let currentStatus = getStatus(for: habit, on: date)
+        
+        // Update the completions dictionary
         if completions[habit.id] == nil {
             completions[habit.id] = [:]
         }
         
-        // Get the current status and toggle to the next one
-        let currentStatus = getCompletionStatus(for: habit, on: date)
         completions[habit.id]?[date] = currentStatus.next
         
-        // Also update the habit's progress dictionary for compatibility with existing code
-        if let index = habits.firstIndex(where: { $0.id == habit.id }) {
-            let day = Calendar.current.component(.day, from: date)
-            let isCompleted = currentStatus.next == .completed
-            habits[index].progress[day] = isCompleted
+        // Update the habit's progress (old format, for compatibility)
+        let day = Calendar.current.component(.day, from: date)
+        let isCompleted = currentStatus.next == CompletionStatus.completed
+        habits[index].progress[day] = isCompleted
+        
+        // If today, update completed flag
+        if calendar.isDateInToday(date) {
+            habits[index].completed = isCompleted
         }
         
         // Save the updated completions
@@ -55,8 +106,10 @@ class HabitViewModel: ObservableObject {
     }
     
     /// Initializer to convert from HabitTrackerViewModel
-    init(from tracker: HabitTrackerViewModel) {
-        self.habits = tracker.habits
-        self.completions = tracker.completions
+    init(tracker: HabitTrackerViewModel? = nil) {
+        if let tracker = tracker {
+            self.habits = tracker.habits
+            self.completions = tracker.completions
+        }
     }
 } 

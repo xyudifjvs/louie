@@ -66,3 +66,12 @@ All notable changes to this project will be documented in this file.
   - Increased size of daily tracker circles (24pt) with subtle white outlines
   - Improved spacing and layout to utilize the full width of the card
   - Added visual refinements to day indicators and progress markers
+
+## [0.1.1] - 2025-03-26
+### Fixed
+- Resolved ambiguous type errors with CompletionStatus by creating a centralized type file
+- Fixed multiple declarations of CompletionStatus enum across files
+- Simplified architecture by using a standard project file instead of a Swift Package
+- Fixed HabitViewModel initialization in HabitCalendarView
+- Added missing updateHabitCompletion method to HabitViewModel
+- Added calculateStreak(for:) method overload to support UUID parameter

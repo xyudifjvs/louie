@@ -48,7 +48,7 @@ struct HabitCalendarView: View {
         .environmentObject(viewModel)
         .onAppear {
             // Create a HabitViewModel for each habit
-            habitViewModels = [HabitViewModel(from: viewModel)]
+            habitViewModels = [HabitViewModel(tracker: viewModel)]
         }
     }
 } 
