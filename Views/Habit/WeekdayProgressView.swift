@@ -8,12 +8,16 @@ struct WeekdayProgressView: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(dayLabel)
-                .font(.system(size: 10))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.white.opacity(0.7))
             
             Circle()
                 .fill(dayColor)
-                .frame(width: 20, height: 20)
+                .frame(width: 24, height: 24)
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
         }
     }
     
@@ -36,7 +40,7 @@ struct WeekdayProgressView: View {
         
         // Check if habit was completed on this day
         if let isCompleted = habit.progress[day] {
-            return isCompleted ? .green : .red
+            return isCompleted ? Color.green.opacity(0.9) : Color.red.opacity(0.8)
         }
         
         // No data for this day

@@ -62,8 +62,8 @@ struct HabitCardView: View {
                         Spacer()
                         
                         Text(habitEmoji)
-                            .font(.system(size: 30))
-                            .frame(width: 50, height: 50)
+                            .font(.system(size: 42))
+                            .frame(width: 65, height: 65)
                             .background(Color.white.opacity(0.1))
                             .clipShape(Circle())
                         
@@ -77,8 +77,9 @@ struct HabitCardView: View {
                         
                         Spacer()
                     }
-                    .frame(width: 60)
+                    .frame(width: 75)
                     .padding(.vertical, 10)
+                    .padding(.leading, 5)
                     
                     // Center section - habit name, streak counter, and weekly progress
                     VStack(alignment: .leading, spacing: 8) {
@@ -86,6 +87,7 @@ struct HabitCardView: View {
                             Text(habit.title)
                                 .font(.headline)
                                 .foregroundColor(.white)
+                                .lineLimit(1)
                             
                             // Streak counter moved next to title
                             if showStreakCounter {
@@ -98,8 +100,6 @@ struct HabitCardView: View {
                             }
                             
                             Spacer()
-                            
-                            // Mood emoji removed from display (data structure retained)
                         }
                         
                         if !habit.description.isEmpty {
@@ -110,18 +110,20 @@ struct HabitCardView: View {
                         }
                         
                         // Larger weekly progress view
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             ForEach(-6...0, id: \.self) { dayOffset in
                                 WeekdayProgressView(
                                     dayOffset: dayOffset,
                                     habit: habit
                                 )
-                                .frame(width: 28, height: 28) // Increased size
+                                .frame(width: 32, height: 32)
                             }
+                            Spacer()
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 12)
+                    .padding(.trailing, 5)
                 }
                 .frame(height: 100)
                 .background(Color.white.opacity(0.1))
