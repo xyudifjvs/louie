@@ -39,6 +39,16 @@ All notable changes to this project will be documented in this file.
   - Enhanced bar chart with gradient fills and improved spacing
   - Available by tapping on habit cards in the calendar view
   - Provides visual insights through bar charts and stat cards
+- Added inline mood entry view when completing habits
+  - Allows users to record how they felt after completing a habit
+  - Includes emotional state selection and optional notes field
+  - Automatically saves data as users type
+
+### Fixed
+- Fixed mood entry view to always appear when completing a habit, regardless of previous completion status
+- Added keyboard dismissal functionality for the notes field in the mood entry view
+- Resolved ambiguity errors with duplicate class declarations in the project
+- Fixed file naming consistency throughout the project structure
 
 ### Changed
 - Modernized navigation system using NavigationStack for iOS 16+ and NavigationView with StackNavigationViewStyle for older versions
@@ -51,3 +61,8 @@ All notable changes to this project will be documented in this file.
 - Created Models folder for Habit, HabitViewModel, and Workout
 - Created Views folder with dedicated subfolders for Habit, Health, Nutrition, Workouts, DailyCheckIn, and Gamification
 - Created Utilities folder for helper components like Color+Hex, ReorderHelpers, and BackgroundBlurView
+- Enhanced HabitCardView design:
+  - Enlarged habit emoji (42pt) and container (65x65) for better visibility
+  - Increased size of daily tracker circles (24pt) with subtle white outlines
+  - Improved spacing and layout to utilize the full width of the card
+  - Added visual refinements to day indicators and progress markers
