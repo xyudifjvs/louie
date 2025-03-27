@@ -152,3 +152,15 @@ All notable changes to this project will be documented in this file.
   - Improved detection of non-queryable field errors
   - Added safeguards to prevent recordName-based queries
   - Added self-verification of correct query patterns
+
+## [0.2.5] - 2025-04-01
+### Fixed
+- Implemented CloudKit safe update pattern for mood logs
+  - Added fetch-before-update logic to prevent optimistic locking conflicts
+  - Fixed "client oplock error updating record" issues when multiple devices update the same record
+  - Ensures app always operates on the most recent version of CloudKit records
+  - Maintains backwards compatibility with existing CloudKit data
+- Enhanced CloudKit reliability
+  - Improved logging for CloudKit update operations
+  - Added clearer distinction between new record creation and record updates
+  - Preserved original record creation functionality to maintain performance

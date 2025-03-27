@@ -884,29 +884,49 @@ class CloudKitManager: ObservableObject {
                 return
             }
             
-            // If we found an existing record, update it
+            // If we found an existing record, fetch the latest version before updating
             if let existingRecord = records?.first {
-                existingRecord[RecordKey.MoodLog.mood] = mood
-                existingRecord[RecordKey.MoodLog.notes] = notes
+                // Get the record ID to fetch the latest version
+                let recordID = existingRecord.recordID
                 
-                self.privateDB.save(existingRecord) { record, error in
-                    if let error = error {
-                        print("[CloudKitError] Error updating mood log: \(error.localizedDescription)")
+                // Fetch the latest version of the record to avoid optimistic locking conflicts
+                self.privateDB.fetch(withRecordID: recordID) { latestRecord, fetchError in
+                    if let fetchError = fetchError {
+                        print("[CloudKitError] Error fetching latest mood log record: \(fetchError.localizedDescription)")
+                        completion(.failure(fetchError))
+                        return
+                    }
+                    
+                    guard var recordToUpdate = latestRecord else {
+                        let error = NSError(domain: "CloudKitManager", code: 6, userInfo: [NSLocalizedDescriptionKey: "[CloudKitError] Could not fetch latest mood log record"])
                         completion(.failure(error))
                         return
                     }
                     
-                    guard let record = record else {
-                        let error = NSError(domain: "CloudKitManager", code: 6, userInfo: [NSLocalizedDescriptionKey: "[CloudKitError] Unknown error updating mood log"])
-                        completion(.failure(error))
-                        return
-                    }
+                    // Apply updates to the latest record
+                    recordToUpdate[RecordKey.MoodLog.mood] = mood
+                    recordToUpdate[RecordKey.MoodLog.notes] = notes
                     
-                    print("[CloudKit] Successfully updated mood log")
-                    completion(.success(record.recordID))
+                    // Save the updated record
+                    self.privateDB.save(recordToUpdate) { savedRecord, saveError in
+                        if let saveError = saveError {
+                            print("[CloudKitError] Error updating mood log: \(saveError.localizedDescription)")
+                            completion(.failure(saveError))
+                            return
+                        }
+                        
+                        guard let savedRecord = savedRecord else {
+                            let error = NSError(domain: "CloudKitManager", code: 6, userInfo: [NSLocalizedDescriptionKey: "[CloudKitError] Unknown error updating mood log"])
+                            completion(.failure(error))
+                            return
+                        }
+                        
+                        print("[CloudKit] Successfully updated mood log with safe update pattern")
+                        completion(.success(savedRecord.recordID))
+                    }
                 }
             } else {
-                // Create a new record
+                // Create a new record - this path remains unchanged as it doesn't have optimistic locking concerns
                 let ckMoodLog = CKMoodLog(
                     id: UUID(),
                     habitID: habitID,
@@ -949,7 +969,7 @@ class CloudKitManager: ObservableObject {
                         return
                     }
                     
-                    print("[CloudKit] Successfully saved mood log")
+                    print("[CloudKit] Successfully saved new mood log")
                     completion(.success(record.recordID))
                 }
             }
