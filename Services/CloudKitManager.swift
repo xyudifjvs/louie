@@ -549,12 +549,16 @@ class CloudKitManager: ObservableObject {
     ///   - status: The completion status
     ///   - completion: Completion handler with result
     func saveHabitCompletion(habitID: UUID, date: Date, status: CompletionStatus, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
-        // Check if there's an existing completion record for this habit and date
+        // For querying existing completions, we still use the date portion to find any completions on the same day
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
-        let predicate = NSPredicate(format: "%K == %@ AND %K == %@", 
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!.addingTimeInterval(-1)
+        
+        // Use a date range to find completions on the same day
+        let predicate = NSPredicate(format: "%K == %@ AND %K >= %@ AND %K <= %@", 
                                   RecordKey.HabitCompletion.habitID, habitID.uuidString,
-                                  RecordKey.HabitCompletion.date, startOfDay as NSDate)
+                                  RecordKey.HabitCompletion.date, startOfDay as NSDate,
+                                  RecordKey.HabitCompletion.date, endOfDay as NSDate)
         let query = CKQuery(recordType: RecordType.habitCompletion, predicate: predicate)
         
         privateDB.perform(query, inZoneWith: nil) { [weak self] records, error in
@@ -585,9 +589,11 @@ class CloudKitManager: ObservableObject {
                 return
             }
             
-            // If we found an existing record, update it
+            // If we found an existing record, update it with the new timestamp and status
             if let existingRecord = records?.first {
                 existingRecord[RecordKey.HabitCompletion.status] = status.stringValue
+                // Update the date to preserve the exact completion time
+                existingRecord[RecordKey.HabitCompletion.date] = date
                 
                 self.privateDB.save(existingRecord) { record, error in
                     if let error = error {
@@ -602,12 +608,12 @@ class CloudKitManager: ObservableObject {
                         return
                     }
                     
-                    print("[CloudKit] Successfully updated habit completion")
+                    print("[CloudKit] Successfully updated habit completion with exact time: \(date)")
                     completion(.success(record.recordID))
                 }
             } else {
-                // Create a new record
-                let ckCompletion = CKHabitCompletion.from(habitID: habitID, date: startOfDay, status: status)
+                // Create a new record with the exact date and time
+                let ckCompletion = CKHabitCompletion.from(habitID: habitID, date: date, status: status)
                 let record = ckCompletion.toCKRecord()
                 
                 self.privateDB.save(record) { record, error in
@@ -642,7 +648,7 @@ class CloudKitManager: ObservableObject {
                         return
                     }
                     
-                    print("[CloudKit] Successfully saved habit completion")
+                    print("[CloudKit] Successfully saved habit completion with exact time: \(date)")
                     completion(.success(record.recordID))
                 }
             }
@@ -656,6 +662,8 @@ class CloudKitManager: ObservableObject {
     func fetchHabitCompletions(habitID: UUID, completion: @escaping (Result<[CKHabitCompletion], Error>) -> Void) {
         let predicate = NSPredicate(format: "%K == %@", RecordKey.HabitCompletion.habitID, habitID.uuidString)
         let query = CKQuery(recordType: RecordType.habitCompletion, predicate: predicate)
+        
+        // Sort by date in descending order (newest first) to show the most recent completions at the top
         query.sortDescriptors = [NSSortDescriptor(key: RecordKey.HabitCompletion.date, ascending: false)]
         
         privateDB.perform(query, inZoneWith: nil) { [weak self] records, error in
@@ -692,7 +700,18 @@ class CloudKitManager: ObservableObject {
             }
             
             let completions = records.compactMap { CKHabitCompletion.from(record: $0) }
-            print("[CloudKit] Successfully fetched \(completions.count) habit completions")
+            print("[CloudKit] Successfully fetched \(completions.count) habit completions with exact times")
+            
+            // Log the first few completion dates if available
+            if !completions.isEmpty {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateStyle = .medium
+                dateFormatter.timeStyle = .medium
+                
+                let sampleDates = completions.prefix(3).map { dateFormatter.string(from: $0.date) }
+                print("[CloudKit] Sample completion dates with times: \(sampleDates.joined(separator: ", "))")
+            }
+            
             completion(.success(completions))
         }
     }
