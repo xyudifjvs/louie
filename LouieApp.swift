@@ -18,27 +18,32 @@ struct LouieApp: App {
             ContentView()
                 .environmentObject(cloudKitManager)
                 .onAppear {
-                    // Check iCloud account status
-                    checkAccountStatus()
+                    // Check iCloud account status and initialize CloudKit
+                    initializeCloudKit()
                 }
         }
     }
     
-    private func checkAccountStatus() {
+    private func initializeCloudKit() {
+        // Check account status
         CKContainer.default().accountStatus { status, error in
             switch status {
             case .available:
-                print("iCloud account available")
+                print("[CloudKit] iCloud account available")
+                // Force schema initialization to ensure record types exist
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    cloudKitManager.forceSchemaInitialization()
+                }
             case .noAccount:
-                print("No iCloud account available. Please sign in to use sync features.")
+                print("[CloudKitError] No iCloud account available. Please sign in to use sync features.")
             case .restricted:
-                print("iCloud account restricted")
+                print("[CloudKitError] iCloud account restricted")
             case .couldNotDetermine:
                 if let error = error {
-                    print("Could not determine iCloud account status: \(error.localizedDescription)")
+                    print("[CloudKitError] Could not determine iCloud account status: \(error.localizedDescription)")
                 }
             @unknown default:
-                print("Unknown iCloud account status")
+                print("[CloudKitError] Unknown iCloud account status")
             }
         }
     }
