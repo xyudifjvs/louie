@@ -253,6 +253,10 @@ class CloudKitManager: ObservableObject {
     @Published var lastSyncDate: Date?
     @Published var iCloudAccountStatus: CKAccountStatus = .couldNotDetermine
     
+    // Flag to prevent multiple schema initializations
+    private var hasInitializedSchema = false
+    private var isCreatingSchema = false
+    
     // MARK: - Initialization
     private init() {
         container = CKContainer.default()
@@ -1087,6 +1091,22 @@ class CloudKitManager: ObservableObject {
     /// Force initialization of CloudKit schemas
     /// - Parameter completion: Optional completion handler
     public func forceSchemaInitialization(completion: ((Bool) -> Void)? = nil) {
+        // Prevent multiple concurrent initializations
+        if isCreatingSchema {
+            print("[CloudKit] Schema initialization already in progress, skipping.")
+            completion?(false)
+            return
+        }
+        
+        // Skip if already initialized successfully
+        if hasInitializedSchema {
+            print("[CloudKit] Schema already initialized, skipping.")
+            completion?(true)
+            return
+        }
+        
+        isCreatingSchema = true
+        
         DispatchQueue.main.async {
             self.isSyncing = true
         }
@@ -1120,6 +1140,8 @@ class CloudKitManager: ObservableObject {
             DispatchQueue.main.async {
                 self.isSyncing = false
                 self.lastSyncDate = Date()
+                self.hasInitializedSchema = true
+                self.isCreatingSchema = false
                 completion?(true)
             }
         }
@@ -1140,15 +1162,57 @@ class CloudKitManager: ObservableObject {
     }
     
     private func createHabitSchema() -> CKOperation? {
+        // Create the zone first
         let recordZone = CKRecordZone(zoneName: "HabitZone")
         let createZoneOperation = CKModifyRecordZonesOperation(recordZonesToSave: [recordZone], recordZoneIDsToDelete: nil)
-        createZoneOperation.modifyRecordZonesCompletionBlock = { _, _, error in
+        
+        createZoneOperation.modifyRecordZonesCompletionBlock = { [weak self] _, _, error in
+            guard let self = self else { return }
+            
             if let error = error {
                 print("[CloudKitError] Error creating habit zone: \(error.localizedDescription)")
                 return
             }
+            
             print("[CloudKit] Successfully created habit zone")
+            
+            // Now create a sample Habit record to register the record type
+            let recordID = CKRecord.ID(recordName: "SampleHabit", zoneID: CKRecordZone.ID(zoneName: "HabitZone", ownerName: CKCurrentUserDefaultName))
+            let record = CKRecord(recordType: RecordType.habit, recordID: recordID)
+            
+            // Add required fields
+            record[RecordKey.Habit.id] = UUID().uuidString
+            record[RecordKey.Habit.title] = "Sample Habit"
+            record[RecordKey.Habit.description] = "Schema initialization sample"
+            record[RecordKey.Habit.reminderTime] = Date()
+            record[RecordKey.Habit.frequency] = "daily"
+            record[RecordKey.Habit.customDays] = [1,2,3,4,5,6,7]
+            record[RecordKey.Habit.emoji] = "🔄"
+            record[RecordKey.Habit.createdAt] = Date()
+            record[RecordKey.Habit.updatedAt] = Date()
+            
+            // Save the sample record to register the record type
+            self.privateDB.save(record) { savedRecord, saveError in
+                if let saveError = saveError {
+                    print("[CloudKitError] Error creating Habit record type: \(saveError.localizedDescription)")
+                    return
+                }
+                
+                print("[CloudKit] Successfully registered Habit record type")
+                
+                // Delete the sample record
+                if let savedRecord = savedRecord {
+                    self.privateDB.delete(withRecordID: savedRecord.recordID) { _, deleteError in
+                        if let deleteError = deleteError {
+                            print("[CloudKitError] Error cleaning up sample Habit record: \(deleteError.localizedDescription)")
+                        } else {
+                            print("[CloudKit] Successfully cleaned up sample Habit record")
+                        }
+                    }
+                }
+            }
         }
+        
         return createZoneOperation
     }
     
@@ -1221,6 +1285,64 @@ class CloudKitManager: ObservableObject {
         }
         
         return operation
+    }
+    
+    // MARK: - Debugging Utilities
+    
+    /// Debug utility: Print info about a CloudKit record
+    func debugRecordInfo(_ record: CKRecord, operation: String) {
+        let recordID = record.recordID
+        let recordType = record.recordType
+        let zoneID = record.recordID.zoneID
+        
+        print("🔍 [CloudKitDebug] \(operation) RECORD INFO:")
+        print("  • Record ID: \(recordID.recordName)")
+        print("  • Record Type: \(recordType)")
+        print("  • Zone Name: \(zoneID.zoneName)")
+        print("  • Zone Owner: \(zoneID.ownerName)")
+        
+        // Print all fields and values
+        print("  • Fields:")
+        for key in record.allKeys() {
+            print("    - \(key): \(String(describing: record[key]))")
+        }
+        print("🔍 [CloudKitDebug] END RECORD INFO")
+    }
+    
+    /// Debug utility: Check available zones and record types
+    func debugDatabaseInfo(completion: (() -> Void)? = nil) {
+        print("🔍 [CloudKitDebug] Checking CloudKit database structure...")
+        
+        // List all zones
+        privateDB.fetchAllRecordZones { zones, error in
+            if let error = error {
+                print("🔍 [CloudKitDebug] Error fetching zones: \(error.localizedDescription)")
+            } else if let zones = zones {
+                print("🔍 [CloudKitDebug] Available zones (\(zones.count)):")
+                for zone in zones {
+                    print("  • \(zone.zoneID.zoneName) (owner: \(zone.zoneID.ownerName))")
+                }
+            }
+            
+            // Check if record types exist by attempting to create sample queries
+            let recordTypes = [RecordType.habit, RecordType.habitCompletion, RecordType.moodLog]
+            
+            for recordType in recordTypes {
+                let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+                query.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+                
+                self.privateDB.perform(query, inZoneWith: nil) { records, error in
+                    if let error = error {
+                        print("🔍 [CloudKitDebug] Record type \(recordType) error: \(error.localizedDescription)")
+                    } else {
+                        let count = records?.count ?? 0
+                        print("🔍 [CloudKitDebug] Record type \(recordType) is valid with \(count) records")
+                    }
+                }
+            }
+            
+            completion?()
+        }
     }
     
     // MARK: - Error Handling
