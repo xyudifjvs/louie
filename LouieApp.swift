@@ -7,7 +7,6 @@
 
 import SwiftUI
 import CloudKit
-import Types  // Import the Types module at the top level
 
 @main
 struct LouieApp: App {
@@ -99,15 +98,17 @@ struct LouieApp: App {
             switch result {
             case .success(let recordID):
                 print("[CloudKitDebug] Successfully saved test habit with record ID: \(recordID.recordName)")
+                print("[CloudKitDebug] Using habit ID \(testHabit.id) for queries (instead of recordName)")
                 
                 // Try creating a habit completion for this habit
                 let today = Date()
-                let completionStatus: CompletionStatus = .completed
                 
-                cloudKitManager.saveHabitCompletion(habitID: testHabit.id, date: today, status: completionStatus) { result in
+                // Use string status for CloudKit instead of enum
+                cloudKitManager.saveHabitCompletion(habitID: testHabit.id, date: today, status: "completed") { result in
                     switch result {
                     case .success(let recordID):
                         print("[CloudKitDebug] Successfully saved test habit completion with record ID: \(recordID.recordName)")
+                        print("[CloudKitDebug] Using habit ID \(testHabit.id) for queries (instead of recordName)")
                     case .failure(let error):
                         print("[CloudKitDebug] Failed to save test habit completion: \(error.localizedDescription)")
                     }
@@ -118,6 +119,7 @@ struct LouieApp: App {
                     switch result {
                     case .success(let recordID):
                         print("[CloudKitDebug] Successfully saved test mood log with record ID: \(recordID.recordName)")
+                        print("[CloudKitDebug] Using habit ID \(testHabit.id) for queries (instead of recordName)")
                     case .failure(let error):
                         print("[CloudKitDebug] Failed to save test mood log: \(error.localizedDescription)")
                     }

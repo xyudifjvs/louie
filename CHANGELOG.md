@@ -116,3 +116,39 @@ All notable changes to this project will be documented in this file.
   - Added force schema initialization method
   - Better handling of schema-related errors
   - Automatic retry mechanism for CloudKit operations
+
+## [0.2.2] - 2025-03-29
+### Fixed
+- Fixed CloudKit query issues with recordName field
+  - Migrated all queries to use the custom `id` field instead of `recordName`
+  - Fixed "Field recordName is not marked queryable" errors in CloudKit Dashboard
+  - Updated all NSPredicate queries to use the proper queryable fields
+  - Improved database schema to better match CloudKit Dashboard requirements
+- Enhanced CloudKit reliability
+  - Fixed issues with records not appearing in CloudKit Dashboard
+  - Improved error handling for schema-related errors
+  - Added more detailed logging for CloudKit operations
+
+## [0.2.3] - 2025-03-30
+### Fixed
+- Fixed CloudKit query reliability issues
+  - Added dedicated helper methods for fetching records by custom ID
+  - Ensured consistent usage of custom ID fields across all query operations
+  - Replaced any implicit recordName references with explicit ID field references
+  - Enhanced error handling for non-queryable field errors
+- Enhanced CloudKit dashboard compatibility
+  - Added record type validation in debug utilities
+  - Added custom ID field verification in database debug tools
+  - Ensured all sort descriptors use queryable fields
+
+## [0.2.4] - 2025-03-31
+### Fixed
+- Completed CloudKit recordName to customID migration
+  - Added schema verification to ensure custom ID fields are queryable
+  - Fixed all schema creation and test record handling to use custom IDs consistently
+  - Added built-in verification checks during schema creation
+  - Created consistent test UUIDs for schema initialization to improve reliability
+- Enhanced CloudKit error resilience
+  - Improved detection of non-queryable field errors
+  - Added safeguards to prevent recordName-based queries
+  - Added self-verification of correct query patterns

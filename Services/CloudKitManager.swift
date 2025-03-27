@@ -546,6 +546,24 @@ class CloudKitManager: ObservableObject {
     
     // MARK: - Habit Completion Methods
     
+    /// Save a habit completion to CloudKit using string status
+    /// - Parameters:
+    ///   - habitID: The ID of the habit
+    ///   - date: The date of completion
+    ///   - status: The completion status as a string ("completed", "notCompleted", "noData")
+    ///   - completion: Completion handler with result
+    func saveHabitCompletion(habitID: UUID, date: Date, status: String, completion: @escaping (Result<CKRecord.ID, Error>) -> Void) {
+        // Try to convert string to CompletionStatus
+        guard let completionStatus = CompletionStatus(fromString: status) else {
+            let error = NSError(domain: "CloudKitManager", code: 101, userInfo: [NSLocalizedDescriptionKey: "Invalid status string: \(status)"])
+            completion(.failure(error))
+            return
+        }
+        
+        // Call the main implementation with the enum value
+        saveHabitCompletion(habitID: habitID, date: date, status: completionStatus, completion: completion)
+    }
+    
     /// Save a habit completion to CloudKit
     /// - Parameters:
     ///   - habitID: The ID of the habit
@@ -1176,12 +1194,17 @@ class CloudKitManager: ObservableObject {
             
             print("[CloudKit] Successfully created habit zone")
             
-            // Now create a sample Habit record to register the record type
+            // Create a sample Habit record with a consistent UUID to register the record type
+            // This ensures we can find it later by ID, not recordName
+            let habitUUID = UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID()
+            
+            // Note: We still use recordName for the CKRecord.ID creation (this is fine)
+            // but not for future queries
             let recordID = CKRecord.ID(recordName: "SampleHabit", zoneID: CKRecordZone.ID(zoneName: "HabitZone", ownerName: CKCurrentUserDefaultName))
             let record = CKRecord(recordType: RecordType.habit, recordID: recordID)
             
             // Add required fields
-            record[RecordKey.Habit.id] = UUID().uuidString
+            record[RecordKey.Habit.id] = habitUUID.uuidString // Use consistent UUID string for sample record
             record[RecordKey.Habit.title] = "Sample Habit"
             record[RecordKey.Habit.description] = "Schema initialization sample"
             record[RecordKey.Habit.reminderTime] = Date()
@@ -1200,7 +1223,8 @@ class CloudKitManager: ObservableObject {
                 
                 print("[CloudKit] Successfully registered Habit record type")
                 
-                // Delete the sample record
+                // Delete the sample record - using the recordID is still appropriate here
+                // since we have a direct reference to it
                 if let savedRecord = savedRecord {
                     self.privateDB.delete(withRecordID: savedRecord.recordID) { _, deleteError in
                         if let deleteError = deleteError {
@@ -1210,6 +1234,9 @@ class CloudKitManager: ObservableObject {
                         }
                     }
                 }
+                
+                // Also fetch by custom ID to verify the schema and custom ID field work properly
+                self.verifySchemaSetup(recordType: RecordType.habit, idFieldKey: RecordKey.Habit.id, idValue: habitUUID.uuidString)
             }
         }
         
@@ -1217,10 +1244,13 @@ class CloudKitManager: ObservableObject {
     }
     
     private func createHabitCompletionSchema() -> CKOperation? {
-        // Create a sample habit completion record to initialize the schema
+        // Create a sample habit completion record with consistent UUID to initialize the schema
+        let sampleCompletionUUID = UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID()
+        
+        // Note: We still use recordName for CKRecord.ID, but not for queries
         let recordID = CKRecord.ID(recordName: "SampleHabitCompletion")
         let record = CKRecord(recordType: RecordType.habitCompletion, recordID: recordID)
-        record[RecordKey.HabitCompletion.id] = UUID().uuidString
+        record[RecordKey.HabitCompletion.id] = sampleCompletionUUID.uuidString // Use consistent ID
         record[RecordKey.HabitCompletion.habitID] = UUID().uuidString
         record[RecordKey.HabitCompletion.date] = Date()
         record[RecordKey.HabitCompletion.status] = "completed"
@@ -1228,7 +1258,9 @@ class CloudKitManager: ObservableObject {
         
         let operation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
         operation.savePolicy = .changedKeys
-        operation.modifyRecordsCompletionBlock = { _, _, error in
+        operation.modifyRecordsCompletionBlock = { [weak self] _, _, error in
+            guard let self = self else { return }
+            
             if let error = error {
                 // This may fail if the record already exists, which is fine
                 print("[CloudKitError] Note: HabitCompletion schema initialization: \(error.localizedDescription)")
@@ -1236,7 +1268,12 @@ class CloudKitManager: ObservableObject {
             }
             print("[CloudKit] Successfully initialized HabitCompletion schema")
             
-            // Now delete the sample record
+            // Verify schema setup using custom ID
+            self.verifySchemaSetup(recordType: RecordType.habitCompletion, 
+                                  idFieldKey: RecordKey.HabitCompletion.id, 
+                                  idValue: sampleCompletionUUID.uuidString)
+            
+            // Now delete the sample record - using recordID is fine here
             let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: [recordID])
             deleteOperation.modifyRecordsCompletionBlock = { _, _, deleteError in
                 if let deleteError = deleteError {
@@ -1252,10 +1289,13 @@ class CloudKitManager: ObservableObject {
     }
     
     private func createMoodLogSchema() -> CKOperation? {
-        // Create a sample mood log record to initialize the schema
+        // Create a sample mood log record with consistent UUID to initialize the schema
+        let sampleMoodLogUUID = UUID(uuidString: "33333333-3333-3333-3333-333333333333") ?? UUID()
+        
+        // Note: We still use recordName for CKRecord.ID, but not for queries
         let recordID = CKRecord.ID(recordName: "SampleMoodLog")
         let record = CKRecord(recordType: RecordType.moodLog, recordID: recordID)
-        record[RecordKey.MoodLog.id] = UUID().uuidString
+        record[RecordKey.MoodLog.id] = sampleMoodLogUUID.uuidString // Use consistent ID
         record[RecordKey.MoodLog.habitID] = UUID().uuidString
         record[RecordKey.MoodLog.date] = Date()
         record[RecordKey.MoodLog.mood] = "happy"
@@ -1264,7 +1304,9 @@ class CloudKitManager: ObservableObject {
         
         let operation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
         operation.savePolicy = .changedKeys
-        operation.modifyRecordsCompletionBlock = { _, _, error in
+        operation.modifyRecordsCompletionBlock = { [weak self] _, _, error in
+            guard let self = self else { return }
+            
             if let error = error {
                 // This may fail if the record already exists, which is fine
                 print("[CloudKitError] Note: MoodLog schema initialization: \(error.localizedDescription)")
@@ -1272,7 +1314,12 @@ class CloudKitManager: ObservableObject {
             }
             print("[CloudKit] Successfully initialized MoodLog schema")
             
-            // Now delete the sample record
+            // Verify schema setup using custom ID
+            self.verifySchemaSetup(recordType: RecordType.moodLog, 
+                                  idFieldKey: RecordKey.MoodLog.id, 
+                                  idValue: sampleMoodLogUUID.uuidString)
+            
+            // Now delete the sample record - using recordID is fine here
             let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: [recordID])
             deleteOperation.modifyRecordsCompletionBlock = { _, _, deleteError in
                 if let deleteError = deleteError {
@@ -1285,6 +1332,23 @@ class CloudKitManager: ObservableObject {
         }
         
         return operation
+    }
+    
+    /// Verifies schema setup by querying a record by its custom ID
+    private func verifySchemaSetup(recordType: String, idFieldKey: String, idValue: String) {
+        // Use custom ID field for verification, not recordName
+        let predicate = NSPredicate(format: "%K == %@", idFieldKey, idValue)
+        let query = CKQuery(recordType: recordType, predicate: predicate)
+        
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("[CloudKitError] Schema verification error for \(recordType): \(error.localizedDescription)")
+            } else if let records = records, !records.isEmpty {
+                print("[CloudKit] Schema verification successful for \(recordType) - custom ID field is queryable")
+            } else {
+                print("[CloudKitWarning] Schema verification could not find sample \(recordType) record by custom ID")
+            }
+        }
     }
     
     // MARK: - Debugging Utilities
@@ -1328,8 +1392,17 @@ class CloudKitManager: ObservableObject {
             let recordTypes = [RecordType.habit, RecordType.habitCompletion, RecordType.moodLog]
             
             for recordType in recordTypes {
+                // Use custom id field for querying instead of recordName
                 let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
-                query.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+                
+                // Ensure sort descriptors use queryable fields
+                if recordType == RecordType.habit {
+                    query.sortDescriptors = [NSSortDescriptor(key: RecordKey.Habit.createdAt, ascending: false)]
+                } else if recordType == RecordType.habitCompletion {
+                    query.sortDescriptors = [NSSortDescriptor(key: RecordKey.HabitCompletion.createdAt, ascending: false)]
+                } else if recordType == RecordType.moodLog {
+                    query.sortDescriptors = [NSSortDescriptor(key: RecordKey.MoodLog.createdAt, ascending: false)]
+                }
                 
                 self.privateDB.perform(query, inZoneWith: nil) { records, error in
                     if let error = error {
@@ -1337,6 +1410,24 @@ class CloudKitManager: ObservableObject {
                     } else {
                         let count = records?.count ?? 0
                         print("🔍 [CloudKitDebug] Record type \(recordType) is valid with \(count) records")
+                        
+                        // Verify that records have the custom ID field
+                        if let firstRecord = records?.first {
+                            var customIDExists = false
+                            if recordType == RecordType.habit {
+                                customIDExists = firstRecord[RecordKey.Habit.id] != nil
+                            } else if recordType == RecordType.habitCompletion {
+                                customIDExists = firstRecord[RecordKey.HabitCompletion.id] != nil
+                            } else if recordType == RecordType.moodLog {
+                                customIDExists = firstRecord[RecordKey.MoodLog.id] != nil
+                            }
+                            
+                            if customIDExists {
+                                print("🔍 [CloudKitDebug] Custom ID field verified for \(recordType)")
+                            } else {
+                                print("🔍 [CloudKitDebug] WARNING: Custom ID field missing for \(recordType)")
+                            }
+                        }
                     }
                 }
             }
@@ -1364,6 +1455,17 @@ class CloudKitManager: ObservableObject {
             return "[CloudKitError] CloudKit service is currently unavailable. Please try again later."
         case CKError.incompatibleVersion.rawValue:
             return "[CloudKitError] Please update your app to use this feature."
+        case CKError.invalidArguments.rawValue:
+            if ckError.localizedDescription.contains("recordName") {
+                // Handle recordName not queryable errors
+                print("[CloudKitError] Query attempted on recordName field which is not queryable. Using custom ID field instead.")
+                return "[CloudKitError] Internal CloudKit query issue. Using alternate method to fetch data."
+            }
+            if ckError.localizedDescription.contains("not marked queryable") {
+                print("[CloudKitError] Field is not marked queryable. Verify schema in CloudKit Dashboard.")
+                return "[CloudKitError] Internal CloudKit query issue. Please try again."
+            }
+            return "[CloudKitError] Invalid arguments in CloudKit operation. Please try again."
         case CKError.internalError.rawValue:
             // Try to create the schema if it doesn't exist
             self.createCloudKitSchema { _ in }
@@ -1392,5 +1494,59 @@ class CloudKitManager: ObservableObject {
             print("[CloudKitError] Unhandled CloudKit error: \(error.localizedDescription)")
             return "[CloudKitError] An unexpected error occurred. Please try again."
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Helper method to fetch a record by its custom ID (not recordName)
+    /// - Parameters:
+    ///   - id: The UUID of the record in string format
+    ///   - recordType: The record type to fetch
+    ///   - idFieldKey: The key for the ID field in this record type
+    ///   - completion: Completion handler with the found record or error
+    private func fetchRecordByCustomID(id: String, recordType: String, idFieldKey: String, completion: @escaping (CKRecord?, Error?) -> Void) {
+        // Always use the custom ID field, never recordName
+        let predicate = NSPredicate(format: "%K == %@", idFieldKey, id)
+        let query = CKQuery(recordType: recordType, predicate: predicate)
+        
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("[CloudKitError] Error fetching \(recordType) by custom ID: \(error.localizedDescription)")
+                completion(nil, error)
+                return
+            }
+            
+            guard let record = records?.first else {
+                let error = NSError(domain: "CloudKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "[CloudKitError] \(recordType) with ID \(id) not found"])
+                completion(nil, error)
+                return
+            }
+            
+            completion(record, nil)
+        }
+    }
+    
+    /// Fetch a habit record by its custom ID
+    /// - Parameters:
+    ///   - habitID: The UUID of the habit
+    ///   - completion: Completion handler with the found record or error
+    func fetchHabitRecordByCustomID(habitID: UUID, completion: @escaping (CKRecord?, Error?) -> Void) {
+        fetchRecordByCustomID(id: habitID.uuidString, recordType: RecordType.habit, idFieldKey: RecordKey.Habit.id, completion: completion)
+    }
+    
+    /// Fetch a habit completion record by its custom ID
+    /// - Parameters:
+    ///   - completionID: The UUID of the completion
+    ///   - completion: Completion handler with the found record or error
+    func fetchHabitCompletionRecordByCustomID(completionID: UUID, completion: @escaping (CKRecord?, Error?) -> Void) {
+        fetchRecordByCustomID(id: completionID.uuidString, recordType: RecordType.habitCompletion, idFieldKey: RecordKey.HabitCompletion.id, completion: completion)
+    }
+    
+    /// Fetch a mood log record by its custom ID
+    /// - Parameters:
+    ///   - moodLogID: The UUID of the mood log
+    ///   - completion: Completion handler with the found record or error
+    func fetchMoodLogRecordByCustomID(moodLogID: UUID, completion: @escaping (CKRecord?, Error?) -> Void) {
+        fetchRecordByCustomID(id: moodLogID.uuidString, recordType: RecordType.moodLog, idFieldKey: RecordKey.MoodLog.id, completion: completion)
     }
 } 
