@@ -90,3 +90,29 @@ All notable changes to this project will be documented in this file.
 - Added CloudKit schema migration utilities
 - Enhanced error handling with user-friendly messages
 - Optimized queries with sorting and filters
+
+## [0.2.1] - 2025-03-28
+### Fixed
+- Fixed CloudKit record type issues with MoodLog
+  - Added automatic schema creation when record types don't exist
+  - Implemented sample record creation to establish schemas
+  - Added proper error handling with automatic retry after schema creation
+- Enhanced CloudKit error logging
+  - Added consistent [CloudKitError] prefix for all error logs
+  - Implemented specific error handling for common CloudKit errors
+  - Added detailed logging for troubleshooting
+- Added initialization protection
+  - Schema initialization on app startup
+  - Automatic cleanup of sample schema records
+  - Added forced schema initialization method
+
+### Added
+- Enhanced time tracking for habit completions
+  - Now tracking exact time of day for habit completions
+  - Improved date range queries to find completions by day
+  - Added better logging for completion timestamps
+  - Updated UI to display time information when available
+- Improved schema migration
+  - Added force schema initialization method
+  - Better handling of schema-related errors
+  - Automatic retry mechanism for CloudKit operations
