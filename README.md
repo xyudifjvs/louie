@@ -23,14 +23,23 @@ The tone is casual and friendly, inspired by a helpful dog companion — with pr
 - AI-generated insights created once daily, summarizing patterns and offering suggestions.
 - Long-form insight generation with cited data points.
 
-### 3. Health Data
+### 3. Nutrition
+The nutrition section allows users to log and analyze their meals using AI:
+
+- Take photos of meals with the built-in camera
+- AI analyzes the image to identify foods and their nutritional content
+- Calculates a "Nutrition Score" based on:
+  - Macronutrient balance (33%)
+  - Micronutrient diversity (25%)
+  - Portion size appropriateness (20%)
+  - Processing level of foods (12%)
+  - Color variety (10%)
+- Displays a dashboard of meal history with detailed nutritional information
+- All meal data is stored in CloudKit for seamless syncing across devices
+
+### 4. Health Data
 - HealthKit integration with toggleable metric syncing (e.g., steps, HRV, sleep, etc.).
 - Daily snapshot analysis stored for trend correlation.
-
-### 4. Nutrition Logging
-- AI-detected meal logging with manual verification.
-- Macro + micronutrient breakdowns.
-- Manual fallback input supported.
 
 ### 5. Workout Logging
 - One log section for all workouts.
@@ -83,7 +92,7 @@ The tone is casual and friendly, inspired by a helpful dog companion — with pr
 ---
 
 ## Instructions for Cursor
-I’m a beginner developer building “Louie” using Cursor with Claude integration. Please assist with:
+I'm a beginner developer building "Louie" using Cursor with Claude integration. Please assist with:
 
 ### 📌 Project Context:
 - Codebase uses SwiftUI and MVVM

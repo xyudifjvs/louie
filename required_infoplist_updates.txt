@@ -1,0 +1,26 @@
+## Required Info.plist Updates for Nutrition Feature
+
+When building the project in Xcode, please ensure the following camera permission descriptions are added to your Info.plist file:
+
+```xml
+<!-- Camera usage description -->
+<key>NSCameraUsageDescription</key>
+<string>Louie needs camera access to analyze your meals and provide nutritional insights</string>
+
+<!-- Photo Library usage description for saving photos -->
+<key>NSPhotoLibraryUsageDescription</key>
+<string>Louie needs photo library access to save meal photos</string>
+
+<!-- Photo Library Add-only usage description for saving photos (iOS 11+) -->
+<key>NSPhotoLibraryAddUsageDescription</key>
+<string>Louie needs permission to save meal photos to your photo library</string>
+```
+
+These permissions are required for the camera functionality in the Nutrition section to work properly.
+
+To add these to your Info.plist in Xcode:
+1. Open the Louie.xcodeproj file in Xcode
+2. Select the "Louie" project in the Project Navigator
+3. Select "Louie" under TARGETS
+4. Select the "Info" tab
+5. Add the above keys and descriptions to the Custom iOS Target Properties section 

@@ -17,12 +17,12 @@ All edits should:
 - Be fully functional in Xcode with SwiftUI previews working
 - Avoid introducing Objective-C bridging
 - Use @ObservedObject, @State, etc. appropriately
-- Follow Louie’s UI style: dark gradients, friendly emoji-based components, playful language
+- Follow Louie's UI style: dark gradients, friendly emoji-based components, playful language
 
 Output only Swift code — no markdown blocks or explanation. All files must remain within `~/Documents/louie`.
 
 Tag any file-level connections, e.g., "this view depends on Habit.swift in /Models".
 
-Always ask for clarification if you’re unsure which data source or component is needed.
+Always ask for clarification if you're unsure which data source or component is needed.
 
 

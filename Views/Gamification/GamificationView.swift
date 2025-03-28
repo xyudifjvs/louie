@@ -6,7 +6,7 @@ struct GamificationView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(gradient: Gradient(colors: [Color(hex: "654ea3"), Color(hex: "eaafc8")]),
+            LinearGradient(gradient: Gradient(colors: [Color(hexCode: "654ea3"), Color(hexCode: "eaafc8")]),
                            startPoint: .topLeading,
                            endPoint: .bottomTrailing)
                 .edgesIgnoringSafeArea(.all)

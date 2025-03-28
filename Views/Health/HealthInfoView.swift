@@ -4,7 +4,7 @@ import SwiftUI
 struct HealthInfoView: View {
     var body: some View {
         ZStack {
-            LinearGradient(gradient: Gradient(colors: [Color(hex: "2b5876"), Color(hex: "4e4376")]),
+            LinearGradient(gradient: Gradient(colors: [Color(hexCode: "2b5876"), Color(hexCode: "4e4376")]),
                           startPoint: .topLeading,
                           endPoint: .bottomTrailing)
                 .edgesIgnoringSafeArea(.all)

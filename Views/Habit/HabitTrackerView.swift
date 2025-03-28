@@ -7,7 +7,7 @@ struct HabitTrackerView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                gradient: Gradient(colors: [Color(hex: "121212"), Color(hex: "1e1e1e")]),
+                gradient: Gradient(colors: [Color(hexCode: "121212"), Color(hexCode: "1e1e1e")]),
                 startPoint: .top,
                 endPoint: .bottom
             )

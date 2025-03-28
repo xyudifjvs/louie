@@ -9,7 +9,7 @@ struct WorkoutsView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(gradient: Gradient(colors: [Color(hex: "5A0000"), Color(hex: "C62828")]),
+            LinearGradient(gradient: Gradient(colors: [Color(hexCode: "5A0000"), Color(hexCode: "C62828")]),
                            startPoint: .topLeading,
                            endPoint: .bottomTrailing)
                 .edgesIgnoringSafeArea(.all)

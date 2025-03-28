@@ -43,6 +43,13 @@ All notable changes to this project will be documented in this file.
   - Allows users to record how they felt after completing a habit
   - Includes emotional state selection and optional notes field
   - Automatically saves data as users type
+- Nutrition section with AI meal analysis feature
+  - Camera integration with permission handling
+  - Meal photo capture and analysis
+  - Nutrition score calculation system
+  - Meal dashboard with detailed nutrition information
+  - CloudKit integration for meal data persistence
+  - Circular camera button with haptic feedback
 
 ### Fixed
 - Fixed mood entry view to always appear when completing a habit, regardless of previous completion status

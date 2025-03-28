@@ -8,7 +8,7 @@ struct DailyCheckInView: View {
     
     var body: some View {
         ZStack {
-            LinearGradient(gradient: Gradient(colors: [Color(hex: "3c1053"), Color(hex: "ad5389")]),
+            LinearGradient(gradient: Gradient(colors: [Color(hexCode: "3c1053"), Color(hexCode: "ad5389")]),
                           startPoint: .top,
                           endPoint: .bottom)
                 .edgesIgnoringSafeArea(.all)
