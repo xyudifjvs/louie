@@ -68,15 +68,45 @@ class NutritionScoreCalculator {
         let nutrientDiversityScore = calculateNutrientDiversityScore(micros: combinedMicros)
         let micronutrientContentScore = calculateMicronutrientContentScore(micros: combinedMicros)
         
-        // Weight the components according to our plan
-        let weightedScore = (
+        // Calculate negative factor penalties
+        let sodiumPenalty = calculateSodiumPenalty(micros: combinedMicros)
+        let processedFoodPenalty = calculateProcessedFoodPenalty(foods: foods)
+        let saturatedFatPenalty = calculateSaturatedFatPenalty(foods: foods)
+        let refinedCarbsPenalty = calculateRefinedCarbsPenalty(foods: foods)
+        
+        // Weight the positive components
+        let baseScore = (
             macroBalanceScore * 0.30 +
             caloricDensityScore * 0.25 +
             nutrientDiversityScore * 0.25 +
             micronutrientContentScore * 0.20
-        ) * 100
+        )
         
-        return min(100, max(0, Int(weightedScore)))
+        // Apply penalties
+        let penaltyFactor = 1.0 - (
+            (sodiumPenalty * 0.25) +
+            (processedFoodPenalty * 0.30) +
+            (saturatedFatPenalty * 0.25) +
+            (refinedCarbsPenalty * 0.20)
+        )
+        
+        // Calculate final score
+        let finalScore = baseScore * penaltyFactor * 100
+        
+        // For debug output
+        print("Nutrition score components:")
+        print("- Macro balance: \(Int(macroBalanceScore * 100))")
+        print("- Caloric density: \(Int(caloricDensityScore * 100))")
+        print("- Nutrient diversity: \(Int(nutrientDiversityScore * 100))")
+        print("- Micronutrient content: \(Int(micronutrientContentScore * 100))")
+        print("Penalties:")
+        print("- Sodium: \(Int(sodiumPenalty * 100))%")
+        print("- Processed food: \(Int(processedFoodPenalty * 100))%")
+        print("- Saturated fat: \(Int(saturatedFatPenalty * 100))%")
+        print("- Refined carbs: \(Int(refinedCarbsPenalty * 100))%")
+        print("Final score: \(Int(finalScore))")
+        
+        return min(100, max(0, Int(finalScore)))
     }
     
     /// Generate nutrition recommendations based on the meal score
@@ -96,6 +126,12 @@ class NutritionScoreCalculator {
                 fiber: result.fiber + food.macros.fiber,
                 sugar: result.sugar + food.macros.sugar
             )
+        }
+        
+        // Combine micros for analysis
+        var micros = MicroData()
+        for food in foods {
+            micros.sodium += food.micros.sodium
         }
         
         // Calculate total calories
@@ -143,6 +179,16 @@ class NutritionScoreCalculator {
         // Sugar recommendations
         if macros.sugar > 15 {
             recommendations.append("This meal is high in sugar. Consider reducing sweet ingredients.")
+        }
+        
+        // Sodium recommendations
+        if micros.sodium > 800 {
+            recommendations.append("This meal is high in sodium. Consider lower-salt alternatives.")
+        }
+        
+        // Process indicators
+        if isProcessedFood(foods) {
+            recommendations.append("This meal contains highly processed foods. Try incorporating more whole foods.")
         }
         
         // If we have a high score and few recommendations
@@ -224,35 +270,59 @@ class NutritionScoreCalculator {
     private func calculateNutrientDiversityScore(micros: MicroData) -> Double {
         // Count micronutrients that are present in meaningful amounts
         var presentMicronutrients = 0
+        var totalPossiblePoints = 0
         
-        // Check vitamins
-        if micros.vitaminA > 0 { presentMicronutrients += 1 }
-        if micros.vitaminC > 0 { presentMicronutrients += 1 }
-        if micros.vitaminD > 0 { presentMicronutrients += 1 }
-        if micros.vitaminE > 0 { presentMicronutrients += 1 }
-        if micros.vitaminK > 0 { presentMicronutrients += 1 }
-        if micros.thiamin > 0 { presentMicronutrients += 1 }
-        if micros.riboflavin > 0 { presentMicronutrients += 1 }
-        if micros.niacin > 0 { presentMicronutrients += 1 }
-        if micros.vitaminB6 > 0 { presentMicronutrients += 1 }
-        if micros.folate > 0 { presentMicronutrients += 1 }
-        if micros.vitaminB12 > 0 { presentMicronutrients += 1 }
+        // Define minimum meaningful thresholds (approximately 10% of daily value)
+        let minVitaminA = 90.0 // μg
+        let minVitaminC = 9.0 // mg
+        let minVitaminD = 2.0 // μg
+        let minVitaminE = 1.5 // mg
+        let minVitaminK = 12.0 // μg
+        let minThiamin = 0.12 // mg
+        let minRiboflavin = 0.13 // mg
+        let minNiacin = 1.6 // mg
+        let minVitaminB6 = 0.17 // mg
+        let minFolate = 40.0 // μg
+        let minVitaminB12 = 0.24 // μg
         
-        // Check minerals
-        if micros.calcium > 0 { presentMicronutrients += 1 }
-        if micros.iron > 0 { presentMicronutrients += 1 }
-        if micros.magnesium > 0 { presentMicronutrients += 1 }
-        if micros.phosphorus > 0 { presentMicronutrients += 1 }
-        if micros.potassium > 0 { presentMicronutrients += 1 }
-        if micros.zinc > 0 { presentMicronutrients += 1 }
-        if micros.copper > 0 { presentMicronutrients += 1 }
-        if micros.manganese > 0 { presentMicronutrients += 1 }
-        if micros.selenium > 0 { presentMicronutrients += 1 }
+        let minCalcium = 100.0 // mg
+        let minIron = 1.8 // mg
+        let minMagnesium = 40.0 // mg
+        let minPhosphorus = 70.0 // mg
+        let minPotassium = 350.0 // mg
+        let minZinc = 1.1 // mg
+        let minCopper = 0.09 // mg
+        let minManganese = 0.23 // mg
+        let minSelenium = 5.5 // μg
+        
+        // Check vitamins with meaningful thresholds
+        totalPossiblePoints += 1; if micros.vitaminA >= minVitaminA { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.vitaminC >= minVitaminC { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.vitaminD >= minVitaminD { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.vitaminE >= minVitaminE { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.vitaminK >= minVitaminK { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.thiamin >= minThiamin { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.riboflavin >= minRiboflavin { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.niacin >= minNiacin { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.vitaminB6 >= minVitaminB6 { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.folate >= minFolate { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.vitaminB12 >= minVitaminB12 { presentMicronutrients += 1 }
+        
+        // Check minerals with meaningful thresholds
+        totalPossiblePoints += 1; if micros.calcium >= minCalcium { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.iron >= minIron { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.magnesium >= minMagnesium { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.phosphorus >= minPhosphorus { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.potassium >= minPotassium { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.zinc >= minZinc { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.copper >= minCopper { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.manganese >= minManganese { presentMicronutrients += 1 }
+        totalPossiblePoints += 1; if micros.selenium >= minSelenium { presentMicronutrients += 1 }
         
         // Sodium isn't counted as a positive (it's usually excessive)
         
-        // Total potential micronutrients is 20
-        return Double(presentMicronutrients) / 20.0
+        // Calculate percentage of meaningful micronutrients
+        return Double(presentMicronutrients) / Double(totalPossiblePoints)
     }
     
     /// Calculate micronutrient content score (0-1)
@@ -309,5 +379,144 @@ class NutritionScoreCalculator {
         
         // Divide by total number of nutrients to get average (20 nutrients)
         return percentOfDV / 20.0
+    }
+    
+    // MARK: - Penalty Calculations
+    
+    /// Calculate penalty for high sodium content (0-1)
+    private func calculateSodiumPenalty(micros: MicroData) -> Double {
+        // Reference values
+        let sodiumDailyLimit: Double = 2300 // mg (upper limit)
+        let mealSodiumIdeal: Double = 600 // mg per meal
+        
+        // No penalty if sodium is below ideal per meal
+        if micros.sodium <= mealSodiumIdeal {
+            return 0.0
+        }
+        
+        // Calculate penalty based on how much it exceeds ideal
+        let excessSodium = micros.sodium - mealSodiumIdeal
+        let maxExcessSodium = sodiumDailyLimit - mealSodiumIdeal
+        
+        // Penalty scales from 0 to 1 as sodium approaches the daily limit
+        let penalty = min(1.0, excessSodium / maxExcessSodium)
+        return penalty
+    }
+    
+    /// Detect if a meal contains processed foods (0-1 penalty)
+    private func calculateProcessedFoodPenalty(foods: [FoodItem]) -> Double {
+        var processedFoodScore = 0.0
+        
+        // Check for common processed food types
+        for food in foods {
+            let name = food.name.lowercased()
+            
+            // Fast food and highly processed items (highest penalty)
+            if name.contains("burger") || name.contains("fast food") || 
+               name.contains("chicken nugget") || name.contains("soda") ||
+               name.contains("french fries") || name.contains("pizza") ||
+               name.contains("chicken sandwich") || name.contains("hot dog") {
+                processedFoodScore += 0.8
+            }
+            // Moderately processed items (medium penalty)
+            else if name.contains("fried") || name.contains("chips") ||
+                    name.contains("crackers") || name.contains("cereal") ||
+                    name.contains("white bread") || name.contains("deli meat") {
+                processedFoodScore += 0.5
+            }
+            // Minimally processed items (small penalty)
+            else if name.contains("bread") || name.contains("cheese") ||
+                    name.contains("pasta") || name.contains("sauce") ||
+                    name.contains("dressing") {
+                processedFoodScore += 0.2
+            }
+        }
+        
+        // Cap the penalty at 1.0
+        return min(1.0, processedFoodScore / Double(foods.count))
+    }
+    
+    /// Calculate penalty for high saturated fat (0-1)
+    private func calculateSaturatedFatPenalty(foods: [FoodItem]) -> Double {
+        // Using standard fat values as a proxy since we don't have direct saturated fat data
+        let totalFat = foods.reduce(0.0) { $0 + $1.macros.fat }
+        let totalCalories = foods.reduce(0) { $0 + $1.calories }
+        
+        // Estimate saturated fat based on food types
+        var estimatedSaturatedFat = 0.0
+        for food in foods {
+            let name = food.name.lowercased()
+            
+            // High saturated fat foods
+            if name.contains("burger") || name.contains("cheese") || 
+               name.contains("butter") || name.contains("bacon") ||
+               name.contains("sausage") || name.contains("pizza") {
+                estimatedSaturatedFat += food.macros.fat * 0.5 // Estimate 50% of fat is saturated
+            } else {
+                estimatedSaturatedFat += food.macros.fat * 0.3 // Estimate 30% of fat is saturated
+            }
+        }
+        
+        // Guard against division by zero
+        guard totalCalories > 0 else { return 0 }
+        
+        // Calculate percentage of calories from saturated fat
+        let saturatedFatCalories = estimatedSaturatedFat * 9 // 9 calories per gram of fat
+        let saturatedFatPercentage = saturatedFatCalories / Double(totalCalories)
+        
+        // No penalty if saturated fat is less than 5% of calories
+        if saturatedFatPercentage <= 0.05 {
+            return 0.0
+        }
+        
+        // Maximum penalty if saturated fat is more than 15% of calories
+        if saturatedFatPercentage >= 0.15 {
+            return 1.0
+        }
+        
+        // Scale penalty between 0 and 1 for saturated fat between 5% and 15%
+        return (saturatedFatPercentage - 0.05) / 0.10
+    }
+    
+    /// Calculate penalty for refined carbohydrates (0-1)
+    private func calculateRefinedCarbsPenalty(foods: [FoodItem]) -> Double {
+        let totalCarbs = foods.reduce(0.0) { $0 + $1.macros.carbs }
+        let totalFiber = foods.reduce(0.0) { $0 + $1.macros.fiber }
+        
+        // Guard against division by zero
+        guard totalCarbs > 0 else { return 0 }
+        
+        // Calculate fiber-to-carb ratio (higher is better)
+        let fiberToCarRatio = totalFiber / totalCarbs
+        
+        // Whole foods typically have higher fiber-to-carb ratios
+        // No penalty if ratio is above 0.1 (10% fiber)
+        if fiberToCarRatio >= 0.1 {
+            return 0.0
+        }
+        
+        // Maximum penalty if ratio is below 0.02 (2% fiber, highly refined)
+        if fiberToCarRatio <= 0.02 {
+            return 1.0
+        }
+        
+        // Scale penalty between 0 and 1 for ratio between 0.02 and 0.1
+        return (0.1 - fiberToCarRatio) / 0.08
+    }
+    
+    /// Check if a meal contains processed foods
+    private func isProcessedFood(_ foods: [FoodItem]) -> Bool {
+        for food in foods {
+            let name = food.name.lowercased()
+            
+            if name.contains("burger") || name.contains("fast food") || 
+               name.contains("french fries") || name.contains("chicken nugget") ||
+               name.contains("pizza") || name.contains("hot dog") ||
+               name.contains("soda") || name.contains("chips") ||
+               name.contains("fried") {
+                return true
+            }
+        }
+        return false
     }
 }
