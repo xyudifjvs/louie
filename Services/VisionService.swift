@@ -82,8 +82,8 @@ class VisionService {
                             for guess in bestGuesses {
                                 let label = LabelAnnotation(
                                     description: guess.label,
-                                    score: 0.95, // High confidence for best guesses
-                                    topicality: 0.95
+                                    score: Float(0.95),
+                                    topicality: Float(0.95)
                                 )
                                 allFoodLabels.append(label)
                             }
@@ -94,8 +94,8 @@ class VisionService {
                             for entity in entities where entity.score > 0.5 && entity.description != nil {
                                 let label = LabelAnnotation(
                                     description: entity.description!,
-                                    score: entity.score,
-                                    topicality: entity.score
+                                    score: Float(entity.score),
+                                    topicality: Float(entity.score)
                                 )
                                 
                                 // Only add if it's food-related
@@ -144,7 +144,15 @@ class VisionService {
                         self.addSpecificFoodSuggestions(&uniqueLabels)
                     }
                     
-                    completion(.success(uniqueLabels))
+                    // Remove duplicate/redundant items like burger variants
+                    let filteredLabels = self.removeDuplicateItems(uniqueLabels)
+                    
+                    // Add improved debugging output
+                    print("Vision API analysis results:")
+                    print("  - Generic labels detected: \(allFoodLabels.filter { !self.isFoodRelated($0.description) }.map { "\($0.description) (\(Int($0.score * 100))%)" }.joined(separator: ", "))")
+                    print("  - Specific food items identified: \(filteredLabels.filter { self.isFoodRelated($0.description) }.map { "\($0.description) (\(Int($0.score * 100))%)" }.joined(separator: ", "))")
+                    
+                    completion(.success(filteredLabels))
                 }
             } catch {
                 completion(.failure(.decodingError(error)))
@@ -229,38 +237,183 @@ class VisionService {
     
     /// Filter and return only food-related labels
     private func filterFoodLabels(_ labels: [LabelAnnotation]) -> [LabelAnnotation] {
-        // Common food categories for filtering
-        let foodCategories = ["food", "dish", "cuisine", "meal", "ingredient", "breakfast", "lunch", "dinner", 
-                              "vegetable", "fruit", "meat", "snack", "dessert", "beverage", "drink"]
+        // Define food ingredient categories (specific foods)
+        let specificFoodItems = [
+            // Proteins
+            "egg", "chicken", "beef", "pork", "turkey", "fish", "salmon", "tuna", "shrimp", 
+            "tofu", "beans", "lentils", "sausage", "bacon", "ham", "steak",
+            
+            // Vegetables
+            "lettuce", "spinach", "kale", "broccoli", "carrot", "potato", "tomato", "onion", 
+            "pepper", "cucumber", "corn", "peas", "mushroom", "avocado",
+            
+            // Fruits
+            "apple", "banana", "orange", "strawberry", "blueberry", "grape", "melon", "watermelon",
+            "pineapple", "mango", "peach", "pear", "cherry", "berry",
+            
+            // Grains & Starches
+            "bread", "toast", "rice", "pasta", "noodle", "cereal", "oatmeal", "pancake", 
+            "waffle", "tortilla", "bun", "bagel", "croissant", "muffin",
+            
+            // Dairy
+            "milk", "cheese", "yogurt", "butter", "cream", "ice cream",
+            
+            // Prepared foods
+            "sandwich", "burger", "pizza", "salad", "soup", "stew", "casserole", "taco", 
+            "burrito", "wrap", "sushi", "curry", "pasta dish", "stir fry"
+        ]
         
-        // First, try to find explicit food labels
-        let foodLabels = labels.filter { label in
-            for category in foodCategories {
-                if label.description.lowercased().contains(category) {
+        // Generic categories to filter out
+        let genericCategories = [
+            "food", "dish", "cuisine", "meal", "breakfast", "lunch", "dinner", 
+            "ingredient", "dishware", "fast food", "snack", "appetizer", "side dish",
+            "comfort food", "gourmet", "homemade", "restaurant", "delicious", "tasty",
+            "plate", "bowl", "fork", "spoon", "cooking", "kitchen", "dining", "table"
+        ]
+        
+        // First, extract specific food items
+        var specificFoods = labels.filter { label in
+            let desc = label.description.lowercased()
+            
+            // Check if it contains a specific food item
+            for food in specificFoodItems {
+                if desc.contains(food) || desc == food {
+                    // Make sure it's not just part of a generic category
+                    for generic in genericCategories {
+                        if desc == generic {
+                            return false
+                        }
+                    }
                     return true
                 }
             }
             return false
         }
         
-        // If we found food labels, return them sorted by confidence
-        if !foodLabels.isEmpty {
-            return foodLabels.sorted { $0.score > $1.score }
+        // If we found specific food items, return them sorted by confidence
+        if !specificFoods.isEmpty {
+            return specificFoods.sorted { $0.score > $1.score }
         }
         
-        // If no explicit food labels, return the top 5 labels by confidence
-        return Array(labels.sorted { $0.score > $1.score }.prefix(5))
+        // Add special case detection for common meal types
+        var mealTypeLabels: [LabelAnnotation] = []
+        for label in labels {
+            let desc = label.description.lowercased()
+            
+            // Check for breakfast items
+            if desc.contains("breakfast") && (
+                desc.contains("full") || desc.contains("american") || desc.contains("english") || 
+                desc.contains("continental") || desc.contains("platter")
+            ) {
+                // Create specific breakfast components instead
+                let components = [
+                    "eggs", "bacon", "sausage", "toast", "hash browns", "pancakes"
+                ]
+                
+                for (index, component) in components.enumerated() {
+                    let adjustedScore = max(0.5, label.score - (Float(index) * 0.05))
+                    let foodLabel = LabelAnnotation(
+                        description: component,
+                        score: adjustedScore,
+                        topicality: adjustedScore
+                    )
+                    mealTypeLabels.append(foodLabel)
+                }
+            }
+        }
+        
+        if !mealTypeLabels.isEmpty {
+            return mealTypeLabels.sorted { $0.score > $1.score }
+        }
+        
+        // If still nothing, use addSpecificFoodSuggestions
+        var suggestedLabels: [LabelAnnotation] = []
+        let hasBreakfast = labels.contains { $0.description.lowercased().contains("breakfast") }
+        let hasDinner = labels.contains { $0.description.lowercased().contains("dinner") }
+        let hasLunch = labels.contains { $0.description.lowercased().contains("lunch") }
+        
+        // Add meal-specific foods
+        if hasBreakfast {
+            suggestedLabels.append(LabelAnnotation(description: "eggs", score: Float(0.9), topicality: Float(0.9)))
+            suggestedLabels.append(LabelAnnotation(description: "toast", score: Float(0.85), topicality: Float(0.85)))
+            suggestedLabels.append(LabelAnnotation(description: "bacon", score: Float(0.8), topicality: Float(0.8)))
+        } else if hasLunch {
+            suggestedLabels.append(LabelAnnotation(description: "sandwich", score: Float(0.9), topicality: Float(0.9)))
+            suggestedLabels.append(LabelAnnotation(description: "salad", score: Float(0.85), topicality: Float(0.85)))
+        } else if hasDinner {
+            suggestedLabels.append(LabelAnnotation(description: "chicken", score: Float(0.9), topicality: Float(0.9)))
+            suggestedLabels.append(LabelAnnotation(description: "rice", score: Float(0.85), topicality: Float(0.85)))
+            suggestedLabels.append(LabelAnnotation(description: "vegetables", score: Float(0.8), topicality: Float(0.8)))
+        }
+        
+        if !suggestedLabels.isEmpty {
+            return suggestedLabels
+        }
+        
+        // If all else fails, return the top 3 labels with a warning
+        let topLabels = Array(labels.sorted { $0.score > $1.score }.prefix(3))
+        print("WARNING: No specific food items detected. Using generic labels.")
+        return topLabels
     }
     
-    /// Check if a term is food-related
+    /// Check if a term is a specific food item rather than a generic category
     private func isFoodRelated(_ term: String) -> Bool {
-        let foodCategories = ["food", "dish", "cuisine", "meal", "ingredient", "breakfast", "lunch", "dinner", 
-                              "vegetable", "fruit", "meat", "snack", "dessert", "beverage", "drink", "sandwich",
-                              "burger", "pizza", "pasta", "salad", "chicken", "beef", "pork", "fish", "bread",
-                              "cheese", "rice", "potato", "egg", "milk", "coffee", "tea", "juice", "soup"]
+        // Define food ingredient categories (specific foods)
+        let specificFoodItems = [
+            // Proteins
+            "egg", "chicken", "beef", "pork", "turkey", "fish", "salmon", "tuna", "shrimp", 
+            "tofu", "beans", "lentils", "sausage", "bacon", "ham", "steak",
+            
+            // Vegetables
+            "lettuce", "spinach", "kale", "broccoli", "carrot", "potato", "tomato", "onion", 
+            "pepper", "cucumber", "corn", "peas", "mushroom", "avocado",
+            
+            // Fruits
+            "apple", "banana", "orange", "strawberry", "blueberry", "grape", "melon", "watermelon",
+            "pineapple", "mango", "peach", "pear", "cherry", "berry",
+            
+            // Grains & Starches
+            "bread", "toast", "rice", "pasta", "noodle", "cereal", "oatmeal", "pancake", 
+            "waffle", "tortilla", "bun", "bagel", "croissant", "muffin",
+            
+            // Dairy
+            "milk", "cheese", "yogurt", "butter", "cream", "ice cream",
+            
+            // Prepared foods
+            "sandwich", "burger", "pizza", "salad", "soup", "stew", "casserole", "taco", 
+            "burrito", "wrap", "sushi", "curry", "pasta dish", "stir fry"
+        ]
+        
+        // Generic categories to filter out
+        let genericCategories = [
+            "food", "dish", "cuisine", "meal", "breakfast", "lunch", "dinner", 
+            "ingredient", "dishware", "fast food", "snack", "appetizer", "side dish"
+        ]
         
         let lowercasedTerm = term.lowercased()
-        return foodCategories.contains { lowercasedTerm.contains($0) }
+        
+        // Filter out generic categories
+        for generic in genericCategories {
+            if lowercasedTerm == generic {
+                return false
+            }
+        }
+        
+        // Check for specific food items
+        for food in specificFoodItems {
+            if lowercasedTerm.contains(food) || lowercasedTerm == food {
+                return true
+            }
+        }
+        
+        // Check for common dishes and meal patterns
+        if (lowercasedTerm.contains("breakfast") && (
+            lowercasedTerm.contains("full") || lowercasedTerm.contains("american") || 
+            lowercasedTerm.contains("english") || lowercasedTerm.contains("platter"))) {
+            return true
+        }
+        
+        return false
     }
     
     /// Check if all terms are generic food categories rather than specific foods
@@ -300,32 +453,161 @@ class VisionService {
     
     /// Add specific food suggestions based on generic categories
     private func addSpecificFoodSuggestions(_ labels: inout [LabelAnnotation]) {
+        // Check if we already have specific food items
+        let existingFoodItems = labels.map { $0.description.lowercased() }
+        
+        // Check for specific foods - if we already have specific items like "cheeseburger", don't add similar items
+        let specificFoodItems = ["cheeseburger", "hamburger", "pizza", "sushi", "taco", "burrito", "sandwich", 
+                                "steak", "pasta", "chicken nuggets", "hot dog", "ice cream", "salad"]
+        let hasSpecificFood = existingFoodItems.contains { item in
+            specificFoodItems.contains(item)
+        }
+        
+        // If we already have a specific food item, don't add suggestions
+        if hasSpecificFood {
+            print("Debug: Found specific food item, skipping additional suggestions")
+            return
+        }
+        
         // Add common foods at lower confidence to help Nutritionix
         var suggestedFoods: [String] = []
         
-        // Check if we have certain categories
-        let hasGenericFastFood = labels.contains { $0.description.lowercased().contains("fast food") }
-        let hasFriedFood = labels.contains { $0.description.lowercased().contains("fried") }
+        // Check for meal types
+        let hasBreakfast = labels.contains { $0.description.lowercased().contains("breakfast") }
+        let hasDinner = labels.contains { $0.description.lowercased().contains("dinner") }
+        let hasLunch = labels.contains { $0.description.lowercased().contains("lunch") }
+        let hasBrunch = labels.contains { $0.description.lowercased().contains("brunch") }
         
-        if hasGenericFastFood {
-            suggestedFoods.append(contentsOf: ["hamburger", "cheeseburger", "french fries", "chicken sandwich"])
+        // Check for cooking/preparation methods 
+        let hasFried = labels.contains { $0.description.lowercased().contains("fried") }
+        let hasGrilled = labels.contains { $0.description.lowercased().contains("grilled") }
+        let hasBaked = labels.contains { $0.description.lowercased().contains("baked") }
+        let hasRoasted = labels.contains { $0.description.lowercased().contains("roasted") }
+        
+        // Check for food categories
+        let hasFastFood = labels.contains { $0.description.lowercased().contains("fast food") }
+        let hasItalian = labels.contains { $0.description.lowercased().contains("italian") }
+        let hasMexican = labels.contains { $0.description.lowercased().contains("mexican") }
+        let hasAsian = labels.contains { 
+            let desc = $0.description.lowercased()
+            return desc.contains("asian") || desc.contains("chinese") || 
+                   desc.contains("japanese") || desc.contains("thai")
         }
         
-        if hasFriedFood {
-            suggestedFoods.append(contentsOf: ["fried chicken", "chicken nuggets", "onion rings"])
+        // Add breakfast specific foods
+        if hasBreakfast || hasBrunch {
+            suggestedFoods.append(contentsOf: ["eggs", "toast", "bacon", "sausage", "oatmeal", "pancakes"])
+            
+            if hasFried {
+                suggestedFoods.append(contentsOf: ["fried eggs", "hash browns"])
+            }
         }
         
-        // Add common foods for general "food" category
-        suggestedFoods.append(contentsOf: ["sandwich", "pizza", "burger", "salad", "chicken"])
+        // Add lunch specific foods
+        if hasLunch {
+            suggestedFoods.append(contentsOf: ["sandwich", "salad", "soup", "wrap"])
+            
+            if hasFried {
+                suggestedFoods.append("french fries")
+            }
+        }
         
-        // Add suggested foods as new labels with lower confidence
+        // Add dinner specific foods
+        if hasDinner {
+            suggestedFoods.append(contentsOf: ["chicken", "beef", "fish", "rice", "potato", "vegetables"])
+            
+            if hasGrilled {
+                suggestedFoods.append(contentsOf: ["grilled chicken", "grilled steak"])
+            }
+            
+            if hasBaked || hasRoasted {
+                suggestedFoods.append(contentsOf: ["roasted vegetables", "baked potato"])
+            }
+        }
+        
+        // Add cuisine-specific foods
+        if hasItalian {
+            suggestedFoods.append(contentsOf: ["pasta", "pizza", "bread", "tomato sauce"])
+        }
+        
+        if hasMexican {
+            suggestedFoods.append(contentsOf: ["taco", "burrito", "rice", "beans"])
+        }
+        
+        if hasAsian {
+            suggestedFoods.append(contentsOf: ["rice", "noodles", "vegetables"])
+        }
+        
+        // Add fast food items - but limit similar items
+        if hasFastFood {
+            // Just add a single burger type instead of multiple similar types
+            suggestedFoods.append("hamburger")
+            suggestedFoods.append("french fries")
+            suggestedFoods.append("chicken sandwich")
+        }
+        
+        // Create final suggestion list
+        var finalSuggestions = Set<String>()
         for food in suggestedFoods {
-            let suggestedLabel = LabelAnnotation(
-                description: food,
-                score: 0.7, // Lower confidence since these are guesses
-                topicality: 0.7
-            )
-            labels.append(suggestedLabel)
+            finalSuggestions.insert(food.lowercased())
         }
+        
+        // Add suggested foods as new labels (avoiding duplicates)
+        for food in finalSuggestions {
+            // Check if this suggestion is already in the labels
+            if !labels.contains(where: { $0.description.lowercased() == food }) {
+                let suggestedLabel = LabelAnnotation(
+                    description: food,
+                    score: Float(0.85), // Higher confidence since these are targeted suggestions
+                    topicality: Float(0.85)
+                )
+                labels.append(suggestedLabel)
+            }
+        }
+        
+        // Debug output
+        print("Added specific food suggestions: \(Array(finalSuggestions).joined(separator: ", "))")
+    }
+    
+    /// Add a new method to filter out redundant food items (like burger variants)
+    private func removeDuplicateItems(_ labels: [LabelAnnotation]) -> [LabelAnnotation] {
+        var result = [LabelAnnotation]()
+        var processedCategories = Set<String>()
+        
+        // Groups of similar foods that should not appear together
+        let similarGroups: [[String]] = [
+            ["hamburger", "cheeseburger", "veggie burger", "burger"], // burger types
+            ["pizza", "cheese pizza", "pepperoni pizza"], // pizza types
+            ["chicken", "fried chicken", "grilled chicken", "roasted chicken"], // chicken types
+            ["sandwich", "club sandwich", "blt sandwich", "grilled cheese"],  // sandwich types
+            ["taco", "soft taco", "hard taco", "breakfast taco"] // taco types
+        ]
+        
+        // Sort by highest score first
+        let sortedLabels = labels.sorted { $0.score > $1.score }
+        
+        for label in sortedLabels {
+            let lowerDesc = label.description.lowercased()
+            
+            // Check if this item belongs to a group we've already processed
+            var inProcessedGroup = false
+            for group in similarGroups {
+                if group.contains(where: { $0 == lowerDesc }) {
+                    let groupKey = group[0] // Use the first item as the group key
+                    if processedCategories.contains(groupKey) {
+                        inProcessedGroup = true
+                        break
+                    } else {
+                        processedCategories.insert(groupKey)
+                    }
+                }
+            }
+            
+            if !inProcessedGroup {
+                result.append(label)
+            }
+        }
+        
+        return result
     }
 }
