@@ -8,6 +8,7 @@
 import SwiftUI
 import AVFoundation
 import UIKit
+import SwiftUI
 
 struct CameraView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -18,6 +19,9 @@ struct CameraView: View {
     @State private var isAnalyzing = false
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var showResultsView = false
+    @State private var detectedLabels: [LabelAnnotation] = []
+    @State private var analyzedImage: UIImage?
     
     var body: some View {
         ZStack {
@@ -142,6 +146,13 @@ struct CameraView: View {
                 }
             )
         }
+        .fullScreenCover(isPresented: $showResultsView) {
+            FoodDetectionResultView(
+                viewModel: viewModel,
+                detectedLabels: detectedLabels,
+                foodImage: analyzedImage ?? UIImage()
+            )
+        }
     }
     
     private func checkPermission() {
@@ -177,20 +188,23 @@ struct CameraView: View {
     private func analyzeImage(_ image: UIImage) {
         isAnalyzing = true
         
-        // Use the AIFoodAnalysisService to analyze the image
-        AIFoodAnalysisService.shared.analyzeFoodImage(image) { result in
+        // Use the VisionService directly to analyze the image
+        VisionService.shared.analyzeFood(image: image) { result in
             DispatchQueue.main.async {
-                isAnalyzing = false
+                self.isAnalyzing = false
                 
                 switch result {
-                case .success(let mealEntry):
-                    // Save meal to CloudKit
-                    viewModel.saveMeal(mealEntry)
-                    presentationMode.wrappedValue.dismiss()
+                case .success(let foodLabels):
+                    print("Successfully detected \(foodLabels.count) food labels")
+                    
+                    // Store the results and show the detection view
+                    self.detectedLabels = foodLabels
+                    self.analyzedImage = image
+                    self.showResultsView = true
                     
                 case .failure(let error):
-                    alertMessage = "Food analysis failed: \(error.description)"
-                    showAlert = true
+                    self.alertMessage = "Food detection failed: \(error.description)"
+                    self.showAlert = true
                 }
             }
         }

@@ -118,4 +118,77 @@ class AIFoodAnalysisService {
             }
         }
     }
+    
+    /// Creates a meal entry from food items and an image
+    /// - Parameters:
+    ///   - foodItems: Array of food items with nutrition data
+    ///   - image: The original food image
+    ///   - userNotes: Optional user notes for the meal
+    ///   - isManuallyAdjusted: Whether this entry was manually adjusted by the user
+    /// - Returns: A complete MealEntry object
+    func createMealEntry(from foodItems: [FoodItem], image: UIImage?, userNotes: String? = nil, isManuallyAdjusted: Bool = false) -> MealEntry {
+        // Create image data for storage if image is provided
+        let imageData = image?.jpegData(compressionQuality: 0.7)
+        
+        // Calculate nutrition score
+        let nutritionScore = nutritionScoreCalculator.calculateScore(for: foodItems)
+        
+        // Calculate combined macronutrients
+        let totalMacros = foodItems.reduce(MacroData(protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0)) { result, item in
+            MacroData(
+                protein: result.protein + item.macros.protein,
+                carbs: result.carbs + item.macros.carbs,
+                fat: result.fat + item.macros.fat,
+                fiber: result.fiber + item.macros.fiber,
+                sugar: result.sugar + item.macros.sugar
+            )
+        }
+        
+        // Combine micronutrients
+        var totalMicros = MicroData()
+        for item in foodItems {
+            totalMicros.vitaminA += item.micros.vitaminA
+            totalMicros.vitaminC += item.micros.vitaminC
+            totalMicros.vitaminD += item.micros.vitaminD
+            totalMicros.vitaminE += item.micros.vitaminE
+            totalMicros.vitaminK += item.micros.vitaminK
+            totalMicros.thiamin += item.micros.thiamin
+            totalMicros.riboflavin += item.micros.riboflavin
+            totalMicros.niacin += item.micros.niacin
+            totalMicros.vitaminB6 += item.micros.vitaminB6
+            totalMicros.folate += item.micros.folate
+            totalMicros.vitaminB12 += item.micros.vitaminB12
+            
+            totalMicros.calcium += item.micros.calcium
+            totalMicros.iron += item.micros.iron
+            totalMicros.magnesium += item.micros.magnesium
+            totalMicros.phosphorus += item.micros.phosphorus
+            totalMicros.potassium += item.micros.potassium
+            totalMicros.sodium += item.micros.sodium
+            totalMicros.zinc += item.micros.zinc
+            totalMicros.copper += item.micros.copper
+            totalMicros.manganese += item.micros.manganese
+            totalMicros.selenium += item.micros.selenium
+        }
+        
+        // Create meal entry
+        let mealEntry = MealEntry(
+            id: UUID(),
+            timestamp: Date(),
+            imageData: imageData,
+            imageURL: nil,
+            foods: foodItems,
+            nutritionScore: nutritionScore,
+            macronutrients: totalMacros,
+            micronutrients: totalMicros,
+            userNotes: userNotes,
+            isManuallyAdjusted: isManuallyAdjusted
+        )
+        
+        // Generate recommendations (could be added to userNotes)
+        let recommendations = nutritionScoreCalculator.generateRecommendations(for: foodItems, score: nutritionScore)
+        print("Nutrition recommendations: \(recommendations.joined(separator: " "))")
+        
+        return mealEntry
+    }
 } 

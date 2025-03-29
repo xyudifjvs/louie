@@ -307,4 +307,29 @@ class NutritionService {
             micros: micros
         )
     }
+    
+    /// Lookup nutrition information for a single food item (useful for manually added items)
+    /// - Parameters:
+    ///   - foodName: The name of the food to look up
+    ///   - completion: Completion handler with Result containing the FoodItem or error
+    func lookupSingleFoodItem(foodName: String, completion: @escaping (Result<FoodItem, APIError>) -> Void) {
+        // Log the query
+        print("Looking up nutrition data for: \(foodName)")
+        
+        // Call the nutrition API
+        getNutritionData(for: foodName) { result in
+            switch result {
+            case .success(let foodItems):
+                if let firstItem = foodItems.first {
+                    // Return the first item found
+                    completion(.success(firstItem))
+                } else {
+                    // No data found
+                    completion(.failure(.noNutritionData))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
 }
