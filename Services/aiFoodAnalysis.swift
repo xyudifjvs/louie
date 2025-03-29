@@ -8,79 +8,114 @@
 import Foundation
 import UIKit
 
-/// Service responsible for communicating with the AI food analysis API
-/// This is a placeholder implementation - in a real app, this would connect to a server API
+/// Service responsible for coordinating the food analysis process
+/// Combines Google Cloud Vision API for image analysis and NutritionIX API for nutrition data
 class AIFoodAnalysisService {
     static let shared = AIFoodAnalysisService()
     
+    private let visionService = VisionService.shared
+    private let nutritionService = NutritionService.shared
+    private let nutritionScoreCalculator = NutritionScoreCalculator.shared
+    
     private init() {}
     
-    // MARK: - API Configuration
-    private let apiBaseURL = "https://api.example.com/food-analysis"
-    private var apiKey: String {
-        // In a real app, this would be securely stored
-        return "YOUR_API_KEY_HERE"
-    }
-    
-    // MARK: - Food Analysis
-    func analyzeFoodImage(_ imageData: Data, completion: @escaping (Result<[FoodItem], Error>) -> Void) {
-        // This is where you would implement the actual API call
-        // For now, we're using a mock implementation in CameraView.swift
-        
-        // Sample API integration code:
-        /*
-        // Create URL request
-        var request = URLRequest(url: URL(string: "\(apiBaseURL)/analyze")!)
-        request.httpMethod = "POST"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        
-        // Create multipart form data
-        let boundary = UUID().uuidString
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        
-        var body = Data()
-        
-        // Add image data
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"image\"; filename=\"meal.jpg\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-        body.append(imageData)
-        body.append("\r\n".data(using: .utf8)!)
-        
-        // Close boundary
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        request.httpBody = body
-        
-        // Create data task
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
+    /// Complete pipeline for analyzing food images and retrieving nutrition data
+    /// - Parameters:
+    ///   - image: The image containing food to analyze
+    ///   - completion: Completion handler with Result containing a MealEntry or error
+    func analyzeFoodImage(_ image: UIImage, completion: @escaping (Result<MealEntry, APIError>) -> Void) {
+        // Step 1: Analyze image with Google Cloud Vision
+        visionService.analyzeFood(image: image) { [weak self] result in
+            guard let self = self else { return }
             
-            guard let data = data else {
-                completion(.failure(NSError(domain: "AIFoodAnalysisService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
-                return
-            }
-            
-            do {
-                // Parse the response
-                let decoder = JSONDecoder()
-                let foodItems = try decoder.decode([FoodItem].self, from: data)
-                completion(.success(foodItems))
-            } catch {
+            switch result {
+            case .success(let foodLabels):
+                // Log success and proceed to nutrition lookup
+                print("Vision API success: Found \(foodLabels.count) labels")
+                print("Top labels: \(foodLabels.prefix(3).map { "\($0.description) (\(Int($0.score * 100))%)" }.joined(separator: ", "))")
+                
+                // Step 2: Get nutrition data using labels from Vision API
+                self.nutritionService.getNutritionInfo(for: foodLabels) { nutritionResult in
+                    switch nutritionResult {
+                    case .success(let foodItems):
+                        // Log success
+                        print("Nutrition API success: Found \(foodItems.count) food items")
+                        
+                        // Create image data for storage
+                        let imageData = image.jpegData(compressionQuality: 0.7)
+                        
+                        // Step 3: Calculate nutrition score
+                        let nutritionScore = self.nutritionScoreCalculator.calculateScore(for: foodItems)
+                        
+                        // Calculate combined macronutrients
+                        let totalMacros = foodItems.reduce(MacroData(protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0)) { result, item in
+                            MacroData(
+                                protein: result.protein + item.macros.protein,
+                                carbs: result.carbs + item.macros.carbs,
+                                fat: result.fat + item.macros.fat,
+                                fiber: result.fiber + item.macros.fiber,
+                                sugar: result.sugar + item.macros.sugar
+                            )
+                        }
+                        
+                        // Combine micronutrients
+                        var totalMicros = MicroData()
+                        for item in foodItems {
+                            totalMicros.vitaminA += item.micros.vitaminA
+                            totalMicros.vitaminC += item.micros.vitaminC
+                            totalMicros.vitaminD += item.micros.vitaminD
+                            totalMicros.vitaminE += item.micros.vitaminE
+                            totalMicros.vitaminK += item.micros.vitaminK
+                            totalMicros.thiamin += item.micros.thiamin
+                            totalMicros.riboflavin += item.micros.riboflavin
+                            totalMicros.niacin += item.micros.niacin
+                            totalMicros.vitaminB6 += item.micros.vitaminB6
+                            totalMicros.folate += item.micros.folate
+                            totalMicros.vitaminB12 += item.micros.vitaminB12
+                            
+                            totalMicros.calcium += item.micros.calcium
+                            totalMicros.iron += item.micros.iron
+                            totalMicros.magnesium += item.micros.magnesium
+                            totalMicros.phosphorus += item.micros.phosphorus
+                            totalMicros.potassium += item.micros.potassium
+                            totalMicros.sodium += item.micros.sodium
+                            totalMicros.zinc += item.micros.zinc
+                            totalMicros.copper += item.micros.copper
+                            totalMicros.manganese += item.micros.manganese
+                            totalMicros.selenium += item.micros.selenium
+                        }
+                        
+                        // Create meal entry
+                        let mealEntry = MealEntry(
+                            id: UUID(),
+                            timestamp: Date(),
+                            imageData: imageData,
+                            imageURL: nil,
+                            foods: foodItems,
+                            nutritionScore: nutritionScore,
+                            macronutrients: totalMacros,
+                            micronutrients: totalMicros,
+                            userNotes: nil,
+                            isManuallyAdjusted: false
+                        )
+                        
+                        // Generate recommendations (could be added to userNotes)
+                        let recommendations = self.nutritionScoreCalculator.generateRecommendations(for: foodItems, score: nutritionScore)
+                        print("Nutrition recommendations: \(recommendations.joined(separator: " "))")
+                        
+                        // Return successful meal entry
+                        completion(.success(mealEntry))
+                        
+                    case .failure(let error):
+                        print("Nutrition API error: \(error.description)")
+                        completion(.failure(error))
+                    }
+                }
+                
+            case .failure(let error):
+                print("Vision API error: \(error.description)")
                 completion(.failure(error))
             }
-        }
-        
-        task.resume()
-        */
-        
-        // For the placeholder, always fail so the mock implementation is used
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            completion(.failure(NSError(domain: "AIFoodAnalysisService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Using mock data instead of real API"])))
         }
     }
 } 

@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B5AE12B92D97B4AE00204D95 /* APIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12B82D97B4A300204D95 /* APIConstants.swift */; };
+		B5AE12BB2D97B4E100204D95 /* APIResponseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12BA2D97B4D500204D95 /* APIResponseModels.swift */; };
+		B5AE12BD2D97B52700204D95 /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12BC2D97B51F00204D95 /* VisionService.swift */; };
+		B5AE12BF2D97B54C00204D95 /* NutritionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12BE2D97B54500204D95 /* NutritionService.swift */; };
+		B5AE12C12D97B57B00204D95 /* NutritionScoreCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12C02D97B57100204D95 /* NutritionScoreCalculator.swift */; };
 		B5E331992D972680009A96F6 /* CompletionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CB52D22D93D1E1009DC977 /* CompletionStatus.swift */; };
 		B5E3319A2D972694009A96F6 /* NutritionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E331752D970C5E009A96F6 /* NutritionModel.swift */; };
 		B5E3319B2D97269B009A96F6 /* HabitTrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */; };
@@ -92,6 +97,11 @@
 		B55284482D9376D900F215D6 /* SplashScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreen.swift; sourceTree = "<group>"; };
 		B57BE6812D9396D600704AA4 /* HabitMoodEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitMoodEntryView.swift; sourceTree = "<group>"; };
 		B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTrackerViewModel.swift; sourceTree = "<group>"; };
+		B5AE12B82D97B4A300204D95 /* APIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConstants.swift; sourceTree = "<group>"; };
+		B5AE12BA2D97B4D500204D95 /* APIResponseModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIResponseModels.swift; sourceTree = "<group>"; };
+		B5AE12BC2D97B51F00204D95 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
+		B5AE12BE2D97B54500204D95 /* NutritionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionService.swift; sourceTree = "<group>"; };
+		B5AE12C02D97B57100204D95 /* NutritionScoreCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionScoreCalculator.swift; sourceTree = "<group>"; };
 		B5CB52C42D93C44F009DC977 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
 		B5CB52D22D93D1E1009DC977 /* CompletionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionStatus.swift; sourceTree = "<group>"; };
 		B5CB52D82D9494A6009DC977 /* Louie.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Louie.entitlements; sourceTree = "<group>"; };
@@ -164,6 +174,7 @@
 		B55284252D9376D900F215D6 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				B5AE12BA2D97B4D500204D95 /* APIResponseModels.swift */,
 				B5E331752D970C5E009A96F6 /* NutritionModel.swift */,
 				B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */,
 				B55284222D9376D900F215D6 /* Habit.swift */,
@@ -184,6 +195,9 @@
 		B55284282D9376D900F215D6 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B5AE12C02D97B57100204D95 /* NutritionScoreCalculator.swift */,
+				B5AE12BE2D97B54500204D95 /* NutritionService.swift */,
+				B5AE12BC2D97B51F00204D95 /* VisionService.swift */,
 				B5E331792D970D15009A96F6 /* CameraManager.swift */,
 				B5E331772D970CC8009A96F6 /* aiFoodAnalysis.swift */,
 				B5CB52C42D93C44F009DC977 /* CloudKitManager.swift */,
@@ -195,6 +209,7 @@
 		B552842C2D9376D900F215D6 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				B5AE12B82D97B4A300204D95 /* APIConstants.swift */,
 				B55284292D9376D900F215D6 /* BackgroundBlurView.swift */,
 				B552842A2D9376D900F215D6 /* Color+Hex.swift */,
 				B552842B2D9376D900F215D6 /* ReorderHelpers.swift */,
@@ -370,15 +385,18 @@
 				B5E331A92D972712009A96F6 /* AchievementsPopup.swift in Sources */,
 				B5E331B42D972752009A96F6 /* MonthSelector.swift in Sources */,
 				B5E331BD2D97277D009A96F6 /* ModularContentView.swift in Sources */,
+				B5AE12BF2D97B54C00204D95 /* NutritionService.swift in Sources */,
 				B5E331C42D9727FD009A96F6 /* LouieApp.swift in Sources */,
 				B5E331A22D9726D1009A96F6 /* CloudKitManager.swift in Sources */,
 				B5E331B62D97275C009A96F6 /* WeekdayProgressView.swift in Sources */,
 				B5E3319A2D972694009A96F6 /* NutritionModel.swift in Sources */,
 				B5E331AD2D972726009A96F6 /* HabitCalendarView.swift in Sources */,
 				B5E3319D2D9726AC009A96F6 /* HabitViewModel.swift in Sources */,
+				B5AE12BD2D97B52700204D95 /* VisionService.swift in Sources */,
 				B5E3319E2D9726B3009A96F6 /* Workout.swift in Sources */,
 				B5E331AE2D97272C009A96F6 /* HabitCardView.swift in Sources */,
 				B5E3319B2D97269B009A96F6 /* HabitTrackerViewModel.swift in Sources */,
+				B5AE12C12D97B57B00204D95 /* NutritionScoreCalculator.swift in Sources */,
 				B5E331B72D972760009A96F6 /* HealthInfoView.swift in Sources */,
 				B5E331B22D972745009A96F6 /* HabitStatsView.swift in Sources */,
 				B5E331AB2D97271C009A96F6 /* CustomDaysSelector.swift in Sources */,
@@ -397,9 +415,11 @@
 				B5E331A52D9726F6009A96F6 /* ReorderHelpers.swift in Sources */,
 				B5E331C02D9727D1009A96F6 /* AIService.swift in Sources */,
 				B5E331AA2D972717009A96F6 /* CreateHabitPopup.swift in Sources */,
+				B5AE12BB2D97B4E100204D95 /* APIResponseModels.swift in Sources */,
 				B5E331A02D9726C7009A96F6 /* CameraManager.swift in Sources */,
 				B5E331B92D972769009A96F6 /* CameraView.swift in Sources */,
 				B5E331BE2D972783009A96F6 /* SplashScreen.swift in Sources */,
+				B5AE12B92D97B4AE00204D95 /* APIConstants.swift in Sources */,
 				B5E331B12D972740009A96F6 /* HabitProgressCard.swift in Sources */,
 				B5E331A12D9726CC009A96F6 /* aiFoodAnalysis.swift in Sources */,
 				B5E331AC2D972722009A96F6 /* EditHabitPopup.swift in Sources */,

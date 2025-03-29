@@ -177,83 +177,22 @@ struct CameraView: View {
     private func analyzeImage(_ image: UIImage) {
         isAnalyzing = true
         
-        // Convert the image to Data
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            isAnalyzing = false
-            alertMessage = "Failed to process image"
-            showAlert = true
-            return
-        }
-        
-        // In a real implementation, we would send this image to an API
-        // For now, we'll simulate an API call with a delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            // Create mock data for testing
-            let mockFoodItems = [
-                FoodItem(
-                    id: UUID(),
-                    name: "Grilled Chicken Breast",
-                    amount: "4 oz",
-                    calories: 180,
-                    macros: MacroData(protein: 35, carbs: 0, fat: 4, fiber: 0, sugar: 0),
-                    micros: MicroData(niacin: 13.5, vitaminB6: 0.5, phosphorus: 220, selenium: 27)
-                ),
-                FoodItem(
-                    id: UUID(),
-                    name: "Brown Rice",
-                    amount: "1 cup",
-                    calories: 220,
-                    macros: MacroData(protein: 5, carbs: 45, fat: 2, fiber: 3.5, sugar: 0),
-                    micros: MicroData(magnesium: 86, phosphorus: 162, manganese: 2.1, selenium: 19.1)
-                ),
-                FoodItem(
-                    id: UUID(),
-                    name: "Broccoli",
-                    amount: "1 cup",
-                    calories: 55,
-                    macros: MacroData(protein: 3.7, carbs: 11.2, fat: 0.6, fiber: 5.1, sugar: 2.6),
-                    micros: MicroData(vitaminC: 135.2, vitaminK: 116, folate: 57.3, manganese: 0.4)
-                )
-            ]
-            
-            // Calculate combined macros for all foods
-            let totalMacros = mockFoodItems.reduce(
-                MacroData(protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0)
-            ) { result, item in
-                MacroData(
-                    protein: result.protein + item.macros.protein,
-                    carbs: result.carbs + item.macros.carbs,
-                    fat: result.fat + item.macros.fat,
-                    fiber: result.fiber + item.macros.fiber,
-                    sugar: result.sugar + item.macros.sugar
-                )
+        // Use the AIFoodAnalysisService to analyze the image
+        AIFoodAnalysisService.shared.analyzeFoodImage(image) { result in
+            DispatchQueue.main.async {
+                isAnalyzing = false
+                
+                switch result {
+                case .success(let mealEntry):
+                    // Save meal to CloudKit
+                    viewModel.saveMeal(mealEntry)
+                    presentationMode.wrappedValue.dismiss()
+                    
+                case .failure(let error):
+                    alertMessage = "Food analysis failed: \(error.description)"
+                    showAlert = true
+                }
             }
-            
-            // Create a new micronutrient struct with all the foods' micros combined
-            var totalMicros = MicroData()
-            
-            // Calculate nutrition score
-            let nutritionScore = viewModel.calculateNutritionScore(foods: mockFoodItems)
-            
-            // Create meal entry
-            let mealEntry = MealEntry(
-                id: UUID(),
-                timestamp: Date(),
-                imageData: imageData,
-                imageURL: nil,
-                foods: mockFoodItems,
-                nutritionScore: nutritionScore,
-                macronutrients: totalMacros,
-                micronutrients: totalMicros,
-                userNotes: nil,
-                isManuallyAdjusted: false
-            )
-            
-            // Save meal to CloudKit
-            viewModel.saveMeal(mealEntry)
-            
-            isAnalyzing = false
-            presentationMode.wrappedValue.dismiss()
         }
     }
     
