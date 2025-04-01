@@ -12,7 +12,6 @@
 		B592804C2D9A3BE7009F1BAD /* NutritionInsightTagView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B592804B2D9A3BD4009F1BAD /* NutritionInsightTagView.swift */; };
 		B592804E2D9A3BFE009F1BAD /* MacroRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B592804D2D9A3BF7009F1BAD /* MacroRingView.swift */; };
 		B59280502D9A686F009F1BAD /* SmartListDetectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B592804F2D9A6862009F1BAD /* SmartListDetectionView.swift */; };
-		B59280522D9A6940009F1BAD /* EnhancedNutritionScoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59280512D9A6935009F1BAD /* EnhancedNutritionScoreView.swift */; };
 		B59280542D9A6A58009F1BAD /* AddFoodItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59280532D9A6A4F009F1BAD /* AddFoodItemView.swift */; };
 		B592805E2D9A77CC009F1BAD /* NutritionViewModel2.swift in Sources */ = {isa = PBXBuildFile; fileRef = B592805D2D9A77B6009F1BAD /* NutritionViewModel2.swift */; };
 		B59280602D9A8132009F1BAD /* NutritionTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B592805F2D9A8132009F1BAD /* NutritionTypes.swift */; };
@@ -112,7 +111,6 @@
 		B592804B2D9A3BD4009F1BAD /* NutritionInsightTagView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionInsightTagView.swift; sourceTree = "<group>"; };
 		B592804D2D9A3BF7009F1BAD /* MacroRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroRingView.swift; sourceTree = "<group>"; };
 		B592804F2D9A6862009F1BAD /* SmartListDetectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartListDetectionView.swift; sourceTree = "<group>"; };
-		B59280512D9A6935009F1BAD /* EnhancedNutritionScoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedNutritionScoreView.swift; sourceTree = "<group>"; };
 		B59280532D9A6A4F009F1BAD /* AddFoodItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFoodItemView.swift; sourceTree = "<group>"; };
 		B592805D2D9A77B6009F1BAD /* NutritionViewModel2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionViewModel2.swift; sourceTree = "<group>"; };
 		B592805F2D9A8132009F1BAD /* NutritionTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionTypes.swift; sourceTree = "<group>"; };
@@ -288,7 +286,6 @@
 			isa = PBXGroup;
 			children = (
 				B59280532D9A6A4F009F1BAD /* AddFoodItemView.swift */,
-				B59280512D9A6935009F1BAD /* EnhancedNutritionScoreView.swift */,
 				B592804F2D9A6862009F1BAD /* SmartListDetectionView.swift */,
 				B592804D2D9A3BF7009F1BAD /* MacroRingView.swift */,
 				B592804B2D9A3BD4009F1BAD /* NutritionInsightTagView.swift */,
@@ -440,7 +437,6 @@
 				B5E331A62D972701009A96F6 /* DailyCheckInView.swift in Sources */,
 				B5E331B02D97273B009A96F6 /* HabitGridView.swift in Sources */,
 				B592804A2D9A3BCB009F1BAD /* IngredientTagView.swift in Sources */,
-				B59280522D9A6940009F1BAD /* EnhancedNutritionScoreView.swift in Sources */,
 				B5E331B32D97274A009A96F6 /* HabitTrackerView.swift in Sources */,
 				B592804E2D9A3BFE009F1BAD /* MacroRingView.swift in Sources */,
 				B5E331B52D972757009A96F6 /* MoodTagPopup.swift in Sources */,
