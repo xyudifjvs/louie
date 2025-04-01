@@ -14,6 +14,9 @@ struct NutritionView: View {
     @State private var showPermissionAlert = false
     @State private var showDeleteConfirmation = false
     @State private var mealToDelete: MealEntry? = nil
+    @State private var showNutritionFlow = false
+    @State private var processedImage: UIImage?
+    @State private var detectedLabels: [FoodLabelAnnotation] = []
     
     var body: some View {
         ZStack {
@@ -110,9 +113,17 @@ struct NutritionView: View {
                  .padding(.bottom) // Add some padding from the bottom edge
             }
         }
-        .sheet(isPresented: $showCameraView) {
-            CameraView()
-        }
+        .sheet(isPresented: $showCameraView, content: {
+            CameraView(viewModel: viewModel, showCameraView: $showCameraView)
+        })
+        .fullScreenCover(isPresented: $showNutritionFlow, content: {
+            NutritionAnimatedFlowView(
+                viewModel: viewModel,
+                showView: $showNutritionFlow,
+                foodImage: processedImage ?? UIImage(),
+                detectedLabels: detectedLabels
+            )
+        })
         .alert("Camera Permission Required", isPresented: $showPermissionAlert) {
             Button("Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {

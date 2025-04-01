@@ -11,6 +11,7 @@ import Foundation
 // MARK: - Supporting Views for SmartListDetectionView
 
 struct SmartListDetectionView: View {
+    @ObservedObject var viewModel: NutritionViewModel2
     let foodImage: UIImage
     let detectedLabels: [FoodLabelAnnotation]
     @Binding var foodItems: [FoodItem]
@@ -22,8 +23,10 @@ struct SmartListDetectionView: View {
     @State private var nutritionScore: Int = 0
     @State private var totalMacros = MacroData()
     @State private var totalCalories: Int = 0
-    @State private var cardRotations: [Double] = [0, 0, 0, 0]
-    @State private var isFlipping: [Bool] = [false, false, false, false]
+    
+    // Improved animation system
+    @State private var cardAnimationValues: [Double] = [0, 0, 0, 0]
+    @State private var isContentSwapped: [Bool] = [false, false, false, false]
     
     // Macro type definition
     private enum MacroType {
@@ -250,11 +253,10 @@ struct SmartListDetectionView: View {
         )
         .cornerRadius(16)
         .rotation3DEffect(
-            .degrees(cardRotations[index]),
+            .degrees(cardAnimationValues[index]),
             axis: (x: 0, y: 1, z: 0),
             perspective: 0.3
         )
-        .opacity(isFlipping[index] ? 0 : 1)
     }
     
     // MARK: - Macro Nutrition Card
@@ -295,11 +297,10 @@ struct SmartListDetectionView: View {
         )
         .cornerRadius(16)
         .rotation3DEffect(
-            .degrees(cardRotations[index]),
+            .degrees(cardAnimationValues[index]),
             axis: (x: 0, y: 1, z: 0),
             perspective: 0.3
         )
-        .opacity(isFlipping[index] ? 0 : 1)
     }
     
     // Helper to get category UI info
@@ -352,15 +353,8 @@ struct SmartListDetectionView: View {
                 // Calculate nutrition data
                 calculateTotals()
                 
-                // Start the card flip animations with staggered timing
-                startCardFlipAnimations()
-                
-                // Show the nutrition summary after cards flip
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    withAnimation(.spring()) {
-                        showNutritionSummary = true
-                    }
-                }
+                // Start the card flip animations with improved timing
+                animateCardsWithCoordinatedTiming()
             }) {
                 HStack {
                     Image(systemName: "checkmark")
@@ -388,7 +382,7 @@ struct SmartListDetectionView: View {
     // Log meal button
     private var logMealButton: some View {
         Button(action: {
-            // Here we'd save the meal to the database and dismiss
+            // Here we save the meal to the database and dismiss
             logMealAndDismiss()
         }) {
             HStack {
@@ -488,33 +482,57 @@ struct SmartListDetectionView: View {
         nutritionScore = max(0, min(100, score))
     }
     
-    // Start the card flip animations with staggered timing
-    private func startCardFlipAnimations() {
-        // Reset the flipping states
-        for i in 0..<4 {
-            isFlipping[i] = false
-            cardRotations[i] = 0
+    // Improved animation with coordinated timing
+    private func animateCardsWithCoordinatedTiming() {
+        // Reset animation values
+        cardAnimationValues = [0, 0, 0, 0]
+        
+        // Set showNutritionSummary to false initially if needed
+        if showNutritionSummary {
+            showNutritionSummary = false
         }
         
-        // Animate each card with a staggered delay
-        for i in 0..<4 {
-            // Set a staggered delay for each card
-            let delay = Double(i) * 0.2
+        // Define base duration and delay
+        let baseDuration: Double = 0.3
+        let baseDelay: Double = 0.15
+        
+        // First update the state to swap content
+        DispatchQueue.main.asyncAfter(deadline: .now() + baseDuration) {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                // Flip to nutrition summary mode
+                showNutritionSummary = true
+            }
+        }
+        
+        // Animate first row of cards (0 and 1)
+        withAnimation(Animation.easeInOut(duration: baseDuration)) {
+            // Only rotate to 90 degrees for the first half of the animation
+            cardAnimationValues[0] = 90
+            cardAnimationValues[1] = 90
+        }
+        
+        // Complete first row rotation after state change
+        DispatchQueue.main.asyncAfter(deadline: .now() + baseDuration + 0.15) {
+            withAnimation(Animation.easeInOut(duration: baseDuration)) {
+                // Rotate back to 0 to avoid mirror effect
+                cardAnimationValues[0] = 0
+                cardAnimationValues[1] = 0
+            }
+        }
+        
+        // Animate second row with delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + baseDelay) {
+            withAnimation(Animation.easeInOut(duration: baseDuration)) {
+                cardAnimationValues[2] = 90
+                cardAnimationValues[3] = 90
+            }
             
-            // Start the rotation
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                // First half of rotation (hide content when card is edge-on)
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    cardRotations[i] = 90
-                    isFlipping[i] = true
-                }
-                
-                // Second half of rotation (show new content)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        cardRotations[i] = 0
-                        isFlipping[i] = false
-                    }
+            // Complete second row rotation after state change
+            DispatchQueue.main.asyncAfter(deadline: .now() + baseDuration + 0.15) {
+                withAnimation(Animation.easeInOut(duration: baseDuration)) {
+                    // Rotate back to 0 to avoid mirror effect
+                    cardAnimationValues[2] = 0
+                    cardAnimationValues[3] = 0
                 }
             }
         }
@@ -522,7 +540,7 @@ struct SmartListDetectionView: View {
     
     // Log the meal and dismiss
     private func logMealAndDismiss() {
-        // Create a meal entry
+        // Create meal entry with all required data
         let mealEntry = MealEntry(
             timestamp: Date(),
             imageData: foodImage.jpegData(compressionQuality: 0.7),
@@ -531,12 +549,11 @@ struct SmartListDetectionView: View {
             macronutrients: totalMacros
         )
         
-        // Log the meal (using the viewModel or a service)
-        // This is a placeholder - actual implementation would use your app's data persistence
-        print("Logging meal with score: \(nutritionScore) and \(foodItems.count) food items")
+        // Save the meal using the viewModel's CloudKit saving functionality
+        viewModel.saveMeal(mealEntry)
         
-        // Signal to parent view that we're done
-        showFoods = true
+        // Signal to parent view that we're done by setting showFoods to false
+        showFoods = false
     }
 }
 

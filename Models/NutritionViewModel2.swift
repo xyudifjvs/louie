@@ -13,6 +13,7 @@
 
 import SwiftUI
 import CloudKit
+import Combine
 
 // MARK: - ViewModel for Nutrition
 public class NutritionViewModel2: ObservableObject {
@@ -21,12 +22,25 @@ public class NutritionViewModel2: ObservableObject {
     @Published public var errorMessage: String?
     @Published public var currentMeal: MealEntry?
     @Published public var nutritionInsights: [NutritionInsight] = []
+    @Published var cloudSyncStatus: SyncStatus = .idle
     
-    private let cloudKitManager = CloudKitManager.shared
-    private let recordType = "MealEntry"
+    private let cloudKitManager = CloudKitSyncManager.shared
     private let nutritionService = NutritionService.shared
+    private var cancellables = Set<AnyCancellable>()
     
-    public init() {}
+    public init() {
+        // Subscribe to sync status changes
+        cloudKitManager.$syncStatus
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                self?.cloudSyncStatus = status
+                self?.isLoading = status.isActive
+            }
+            .store(in: &cancellables)
+        
+        // Setup app lifecycle observers
+        setupAppLifecycleObservers()
+    }
     
     // Calculate nutrition score based on multiple factors
     public func calculateNutritionScore(foods: [FoodItem]) -> Int {
@@ -99,74 +113,26 @@ public class NutritionViewModel2: ObservableObject {
     
     /// Fetch meals from CloudKit
     public func fetchMeals() {
-        isLoading = true
+        print("🔄 Fetching meals from CloudKit...")
         errorMessage = nil
         
-        let predicate = NSPredicate(value: true)
-        let query = CKQuery(recordType: recordType, predicate: predicate)
-        query.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
-        
-        // Use CKContainer directly instead of CloudKitManager
-        let database = CKContainer.default().privateCloudDatabase
-        database.perform(query, inZoneWith: nil) { [weak self] (records, error) in
+        cloudKitManager.fetchRecords(ofType: MealEntry.self, sortDescriptors: [NSSortDescriptor(key: "timestamp", ascending: false)]) { [weak self] result in
+            guard let self = self else { return }
+            
             DispatchQueue.main.async {
-                self?.isLoading = false
-                
-                if let error = error {
-                    self?.errorMessage = "Failed to fetch meals: \(error.localizedDescription)"
-                    return
-                }
-                
-                guard let records = records else {
-                    self?.errorMessage = "No records found"
-                    return
-                }
-                
-                self?.meals = records.compactMap { record in
-                    guard let timestamp = record["timestamp"] as? Date,
-                          let nutritionScore = record["nutritionScore"] as? Int else {
-                        return nil
+                switch result {
+                case .success(let fetchedMeals):
+                    print("✅ Successfully fetched \(fetchedMeals.count) meals")
+                    withAnimation {
+                        self.meals = fetchedMeals
                     }
                     
-                    // Parse foods
-                    var foods: [FoodItem] = []
-                    if let foodsData = record["foods"] as? Data {
-                        foods = (try? JSONDecoder().decode([FoodItem].self, from: foodsData)) ?? []
-                    }
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                    print("❌ Error fetching meals: \(error.localizedDescription)")
                     
-                    // Parse macronutrients
-                    var macronutrients = MacroData(protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0)
-                    if let macroData = record["macronutrients"] as? Data {
-                        macronutrients = (try? JSONDecoder().decode(MacroData.self, from: macroData)) ?? macronutrients
-                    }
-                    
-                    // Parse micronutrients
-                    var micronutrients = MicroData()
-                    if let microData = record["micronutrients"] as? Data {
-                        micronutrients = (try? JSONDecoder().decode(MicroData.self, from: microData)) ?? micronutrients
-                    }
-                    
-                    // Get image if available
-                    var imageData: Data? = nil
-                    var imageURL: String? = nil
-                    if let asset = record["mealImage"] as? CKAsset, let fileURL = asset.fileURL {
-                        imageData = try? Data(contentsOf: fileURL)
-                        imageURL = fileURL.absoluteString
-                    }
-                    
-                    return MealEntry(
-                        id: UUID(),
-                        timestamp: timestamp,
-                        imageData: imageData,
-                        imageURL: imageURL,
-                        foods: foods,
-                        nutritionScore: nutritionScore,
-                        macronutrients: macronutrients,
-                        micronutrients: micronutrients,
-                        userNotes: record["userNotes"] as? String,
-                        isManuallyAdjusted: record["isManuallyAdjusted"] as? Bool ?? false,
-                        recordID: record.recordID
-                    )
+                    // Try to load from local cache instead
+                    self.loadFromLocalCache()
                 }
             }
         }
@@ -174,104 +140,78 @@ public class NutritionViewModel2: ObservableObject {
     
     /// Save a meal to CloudKit
     public func saveMeal(_ meal: MealEntry) {
-        isLoading = true
+        print("💾 Saving meal to CloudKit...")
         errorMessage = nil
         
-        let record = CKRecord(recordType: recordType)
+        // First, save to local meals array for immediate UI update
+        var mealCopy = meal
         
-        // Set record values
-        record["timestamp"] = meal.timestamp
-        record["foods"] = try? JSONEncoder().encode(meal.foods)
-        record["nutritionScore"] = meal.nutritionScore
-        record["macronutrients"] = try? JSONEncoder().encode(meal.macronutrients)
-        record["micronutrients"] = try? JSONEncoder().encode(meal.micronutrients)
-        record["userNotes"] = meal.userNotes
-        record["isManuallyAdjusted"] = meal.isManuallyAdjusted
-        
-        if let imageData = meal.imageData {
-            let imageAsset = CKAsset(fileURL: saveImageToTempDirectory(imageData: imageData))
-            record["mealImage"] = imageAsset
+        if let index = meals.firstIndex(where: { $0.id == meal.id }) {
+            // Update existing meal
+            meals[index] = mealCopy
+        } else {
+            // Add new meal to the beginning of the array
+            meals.insert(mealCopy, at: 0)
         }
         
-        // Use CKContainer directly instead of CloudKitManager
-        let database = CKContainer.default().privateCloudDatabase
-        database.save(record) { [weak self] (savedRecord, error) in
+        // Save to local cache
+        saveToLocalCache()
+        
+        // Then save to CloudKit
+        cloudKitManager.saveRecord(mealCopy) { [weak self] result in
+            guard let self = self else { return }
+            
             DispatchQueue.main.async {
-                self?.isLoading = false
-                
-                if let error = error {
-                    self?.errorMessage = "Failed to save meal: \(error.localizedDescription)"
-                    return
+                switch result {
+                case .success(let savedMeal):
+                    print("✅ Successfully saved meal to CloudKit")
+                    
+                    // Update the meal in our array with the one returned from CloudKit (with recordID)
+                    if let index = self.meals.firstIndex(where: { $0.id == savedMeal.id }) {
+                        self.meals[index] = savedMeal
+                        
+                        // Also update local cache
+                        self.saveToLocalCache()
+                    }
+                    
+                case .failure(let error):
+                    self.errorMessage = "Error saving meal: \(error.localizedDescription)"
+                    print("❌ Error saving meal: \(error.localizedDescription)")
                 }
-                
-                guard let savedRecord = savedRecord else {
-                    self?.errorMessage = "Failed to save record"
-                    return
-                }
-                
-                var savedMeal = meal
-                savedMeal.recordID = savedRecord.recordID
-                self?.meals.append(savedMeal)
             }
         }
     }
     
     /// Update an existing meal
     public func updateMeal(_ meal: MealEntry) {
-        guard let recordID = meal.recordID else {
-            saveMeal(meal) // If no record ID, treat as a new meal
-            return
-        }
+        print("🔄 Updating meal in CloudKit...")
         
-        // First update local array
+        // First update local array for immediate UI update
         if let index = meals.firstIndex(where: { $0.id == meal.id }) {
             meals[index] = meal
+            // Save to local cache
+            saveToLocalCache()
         }
         
-        isLoading = true
-        errorMessage = nil
-        
-        let database = CKContainer.default().privateCloudDatabase
-        database.fetch(withRecordID: recordID) { [weak self] (record, error) in
+        // Then update in CloudKit
+        cloudKitManager.saveRecord(meal) { [weak self] result in
             guard let self = self else { return }
             
-            if let error = error {
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.errorMessage = "Failed to fetch record for update: \(error.localizedDescription)"
-                }
-                return
-            }
-            
-            guard var record = record else {
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.errorMessage = "Record not found for update"
-                }
-                return
-            }
-            
-            // Update record values
-            record["timestamp"] = meal.timestamp
-            record["foods"] = try? JSONEncoder().encode(meal.foods)
-            record["nutritionScore"] = meal.nutritionScore
-            record["macronutrients"] = try? JSONEncoder().encode(meal.macronutrients)
-            record["micronutrients"] = try? JSONEncoder().encode(meal.micronutrients)
-            record["userNotes"] = meal.userNotes
-            record["isManuallyAdjusted"] = meal.isManuallyAdjusted
-            
-            if let imageData = meal.imageData {
-                let imageAsset = CKAsset(fileURL: self.saveImageToTempDirectory(imageData: imageData))
-                record["mealImage"] = imageAsset
-            }
-            
-            database.save(record) { (savedRecord, error) in
-                DispatchQueue.main.async {
-                    self.isLoading = false
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let updatedMeal):
+                    print("✅ Successfully updated meal in CloudKit")
                     
-                    if let error = error {
-                        self.errorMessage = "Failed to update meal: \(error.localizedDescription)"
+                    // Update with the latest version from CloudKit
+                    if let index = self.meals.firstIndex(where: { $0.id == updatedMeal.id }) {
+                        self.meals[index] = updatedMeal
+                        // Update local cache
+                        self.saveToLocalCache()
                     }
+                    
+                case .failure(let error):
+                    self.errorMessage = "Error updating meal: \(error.localizedDescription)"
+                    print("❌ Error updating meal: \(error.localizedDescription)")
                 }
             }
         }
@@ -279,47 +219,99 @@ public class NutritionViewModel2: ObservableObject {
     
     /// Delete a meal from CloudKit and local storage
     public func deleteMeal(_ meal: MealEntry) {
+        print("🗑️ Deleting meal from CloudKit...")
+        
         // Add haptic feedback
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
         
         // Remove from local array first for immediate UI update
-        DispatchQueue.main.async {
-            withAnimation {
-                self.meals.removeAll { $0.id == meal.id }
-            }
+        withAnimation {
+            meals.removeAll { $0.id == meal.id }
         }
         
-        // Then delete from CloudKit if we have a record ID
-        if let recordID = meal.recordID {
-            let database = CKContainer.default().privateCloudDatabase
-            database.delete(withRecordID: recordID) { (recordID, error) in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        self.errorMessage = "Failed to delete meal: \(error.localizedDescription)"
-                        print("Error deleting meal: \(error)")
-                        
-                        // Add the meal back to the array if CloudKit deletion failed
-                        self.meals.append(meal)
-                        self.meals.sort { $0.timestamp > $1.timestamp }
-                    } else {
-                        print("Successfully deleted meal from CloudKit")
-                    }
+        // Update local cache
+        saveToLocalCache()
+        
+        // Then delete from CloudKit
+        cloudKitManager.deleteRecord(meal) { [weak self] result in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("✅ Successfully deleted meal from CloudKit")
+                    
+                case .failure(let error):
+                    self.errorMessage = "Error deleting meal: \(error.localizedDescription)"
+                    print("❌ Error deleting meal: \(error.localizedDescription)")
+                    
+                    // Add the meal back to the array if CloudKit deletion failed
+                    self.meals.append(meal)
+                    self.meals.sort { $0.timestamp > $1.timestamp }
+                    
+                    // Update local cache
+                    self.saveToLocalCache()
                 }
             }
         }
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Local Caching
     
-    private func saveImageToTempDirectory(imageData: Data) -> URL {
-        let temporaryDirectory = FileManager.default.temporaryDirectory
-        let fileName = UUID().uuidString + ".jpg"
-        let fileURL = temporaryDirectory.appendingPathComponent(fileName)
+    /// Save meals to UserDefaults as a backup
+    private func saveToLocalCache() {
+        print("💾 Saving to local cache...")
         
-        try? imageData.write(to: fileURL)
-        return fileURL
+        do {
+            // Limit to last 30 meals to avoid excessive storage
+            let limitedMeals = Array(meals.prefix(30))
+            let data = try JSONEncoder().encode(limitedMeals)
+            UserDefaults.standard.set(data, forKey: "cachedMeals")
+        } catch {
+            print("❌ Error saving to local cache: \(error.localizedDescription)")
+        }
     }
+    
+    /// Load meals from UserDefaults when offline
+    private func loadFromLocalCache() {
+        print("📂 Loading from local cache...")
+        
+        if let data = UserDefaults.standard.data(forKey: "cachedMeals") {
+            do {
+                let cachedMeals = try JSONDecoder().decode([MealEntry].self, from: data)
+                withAnimation {
+                    self.meals = cachedMeals
+                }
+                print("✅ Loaded \(cachedMeals.count) meals from local cache")
+            } catch {
+                print("❌ Error loading from local cache: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // MARK: - App Lifecycle
+    
+    /// Setup app lifecycle observers to refresh data
+    private func setupAppLifecycleObservers() {
+        // Refresh data when app becomes active
+        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .sink { [weak self] _ in
+                print("📱 App became active, refreshing data...")
+                self?.fetchMeals()
+            }
+            .store(in: &cancellables)
+        
+        // Refresh iCloud status
+        NotificationCenter.default.publisher(for: Notification.Name.CKAccountChanged)
+            .sink { [weak self] _ in
+                print("☁️ iCloud account changed, refreshing data...")
+                self?.fetchMeals()
+            }
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Helper Methods
     
     /// Generate nutritional insights for the current meal
     public func generateInsights() {
@@ -331,5 +323,11 @@ public class NutritionViewModel2: ObservableObject {
         let foodLabels = currentMeal.foods.map { $0.name }
         // Use the synchronous version that returns insights directly
         nutritionInsights = nutritionService.getNutritionalInsights(for: foodLabels)
+    }
+    
+    /// Manually force a refresh of all data
+    public func forceRefresh() {
+        print("🔄 Forcing refresh of data...")
+        fetchMeals()
     }
 }

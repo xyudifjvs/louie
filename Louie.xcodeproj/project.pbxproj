@@ -23,6 +23,7 @@
 		B5AE12C32D97C18400204D95 /* FoodDetectionResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12C22D97C17100204D95 /* FoodDetectionResultView.swift */; };
 		B5AE12C52D97C19300204D95 /* FoodItemEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12C42D97C18C00204D95 /* FoodItemEditView.swift */; };
 		B5AE12C72D97C1B800204D95 /* FoodLogConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12C62D97C19C00204D95 /* FoodLogConfirmationView.swift */; };
+		B5C44AE72D9BB5C20052A4B3 /* CloudKitSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C44AE62D9BB5B40052A4B3 /* CloudKitSyncManager.swift */; };
 		B5E331992D972680009A96F6 /* CompletionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CB52D22D93D1E1009DC977 /* CompletionStatus.swift */; };
 		B5E3319B2D97269B009A96F6 /* HabitTrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */; };
 		B5E3319C2D9726A2009A96F6 /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284222D9376D900F215D6 /* Habit.swift */; };
@@ -122,6 +123,7 @@
 		B5AE12C22D97C17100204D95 /* FoodDetectionResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDetectionResultView.swift; sourceTree = "<group>"; };
 		B5AE12C42D97C18C00204D95 /* FoodItemEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodItemEditView.swift; sourceTree = "<group>"; };
 		B5AE12C62D97C19C00204D95 /* FoodLogConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogConfirmationView.swift; sourceTree = "<group>"; };
+		B5C44AE62D9BB5B40052A4B3 /* CloudKitSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncManager.swift; sourceTree = "<group>"; };
 		B5CB52C42D93C44F009DC977 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
 		B5CB52D22D93D1E1009DC977 /* CompletionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionStatus.swift; sourceTree = "<group>"; };
 		B5CB52D82D9494A6009DC977 /* Louie.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Louie.entitlements; sourceTree = "<group>"; };
@@ -214,6 +216,7 @@
 		B55284282D9376D900F215D6 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B5C44AE62D9BB5B40052A4B3 /* CloudKitSyncManager.swift */,
 				B5AE12C02D97B57100204D95 /* NutritionScoreCalculator.swift */,
 				B5AE12BE2D97B54500204D95 /* NutritionService.swift */,
 				B5AE12BC2D97B51F00204D95 /* VisionService.swift */,
@@ -443,6 +446,7 @@
 				B5E331AF2D972735009A96F6 /* HabitDashboardView.swift in Sources */,
 				B5E331992D972680009A96F6 /* CompletionStatus.swift in Sources */,
 				B5AE12C52D97C19300204D95 /* FoodItemEditView.swift in Sources */,
+				B5C44AE72D9BB5C20052A4B3 /* CloudKitSyncManager.swift in Sources */,
 				B5E331C32D9727EA009A96F6 /* ContentView.swift in Sources */,
 				B5E331A32D9726E9009A96F6 /* BackgroundBlurView.swift in Sources */,
 				B5E331A52D9726F6009A96F6 /* ReorderHelpers.swift in Sources */,

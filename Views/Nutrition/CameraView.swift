@@ -11,7 +11,8 @@ import UIKit
 struct CameraView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var cameraManager = CameraManager.shared
-    @ObservedObject var viewModel = NutritionViewModel2()
+    @ObservedObject var viewModel: NutritionViewModel2
+    @Binding var showCameraView: Bool
     
     @State private var isCaptured = false
     @State private var isAnalyzing = false
@@ -152,13 +153,17 @@ struct CameraView: View {
         }
         .fullScreenCover(isPresented: $showResultsView, onDismiss: {
             // Dismiss back to the main view when the meal flow is completed
-            presentationMode.wrappedValue.dismiss()
+            showCameraView = false
         }) {
             if useAnimatedFlow {
                 // Use the new animated UI flow
                 NutritionAnimatedFlowView(
+                    viewModel: viewModel,
+                    showView: $showResultsView,
                     foodImage: analyzedImage ?? UIImage(),
-                    detectedLabels: detectedLabels.map { FoodLabelAnnotation(description: $0.description, confidence: Double($0.score)) }
+                    detectedLabels: detectedLabels.map { 
+                        FoodLabelAnnotation(description: $0.description, confidence: Double($0.score))
+                    }
                 )
             } else {
                 // Use the standard UI flow
