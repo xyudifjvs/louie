@@ -1,5 +1,5 @@
 //
-//  UntitledCameraManager.swift
+//  CameraManager.swift
 //  Louie
 //
 //  Created by Carson on 3/28/25.
@@ -39,14 +39,17 @@ class CameraManager: NSObject, ObservableObject {
     static let shared = CameraManager()
     
     @Published var error: CameraError?
-    @Published var showPermissionAlert = false
     @Published var image: UIImage?
     
-    private var captureSession: AVCaptureSession?
+    @Published var captureSession: AVCaptureSession?
     private var photoOutput: AVCapturePhotoOutput?
-    private var completionHandler: ((Result<UIImage, CameraError>) -> Void)?
+    private var completion: ((Result<UIImage, CameraError>) -> Void)?
     
-    // Check if camera permission has been granted
+    override init() {
+        super.init()
+    }
+    
+    // Check camera permission
     func checkCameraPermission(completion: @escaping (Bool) -> Void) {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
@@ -59,7 +62,6 @@ class CameraManager: NSObject, ObservableObject {
             }
         case .denied, .restricted:
             self.error = .permissionDenied
-            self.showPermissionAlert = true
             completion(false)
         @unknown default:
             self.error = .unknown
@@ -67,113 +69,104 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
     
-    // Setup camera capture session
-    func setupCaptureSession() -> AVCaptureSession? {
-        let captureSession = AVCaptureSession()
-        captureSession.beginConfiguration()
+    // Set up and start the camera session
+    func setupAndStartSession() {
+        // Create the session
+        let session = AVCaptureSession()
+        session.sessionPreset = .photo
         
-        // Set up the capture device
-        guard let videoDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-              let videoDeviceInput = try? AVCaptureDeviceInput(device: videoDevice) else {
-            self.error = .deviceNotAvailable
-            return nil
+        // Configure the session on a background queue
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Get the camera device
+            guard let camera = AVCaptureDevice.default(for: .video) else {
+                DispatchQueue.main.async {
+                    self.error = .deviceNotAvailable
+                }
+                return
+            }
+            
+            do {
+                // Add camera input
+                let input = try AVCaptureDeviceInput(device: camera)
+                if session.canAddInput(input) {
+                    session.addInput(input)
+                }
+                
+                // Add photo output
+                let photoOutput = AVCapturePhotoOutput()
+                if session.canAddOutput(photoOutput) {
+                    session.addOutput(photoOutput)
+                    self.photoOutput = photoOutput
+                }
+                
+                // Update the published property on the main thread
+                DispatchQueue.main.async {
+                    self.captureSession = session
+                }
+                
+                // Start the session on the background thread
+                session.startRunning()
+            } catch {
+                DispatchQueue.main.async {
+                    self.error = .deviceNotAvailable
+                }
+            }
         }
-        
-        if captureSession.canAddInput(videoDeviceInput) {
-            captureSession.addInput(videoDeviceInput)
-        }
-        
-        // Setup the photo output
-        let photoOutput = AVCapturePhotoOutput()
-        if captureSession.canAddOutput(photoOutput) {
-            captureSession.addOutput(photoOutput)
-            self.photoOutput = photoOutput
-        }
-        
-        captureSession.commitConfiguration()
-        self.captureSession = captureSession
-        
-        return captureSession
     }
     
-    // Take a photo
+    // Capture a photo
     func capturePhoto(completion: @escaping (Result<UIImage, CameraError>) -> Void) {
-        self.completionHandler = completion
+        self.completion = completion
         
-        guard let photoOutput = self.photoOutput else {
+        // Check if we have a valid photo output
+        guard let photoOutput = photoOutput, captureSession?.isRunning == true else {
             completion(.failure(.deviceNotAvailable))
             return
         }
         
-        let photoSettings = AVCapturePhotoSettings()
+        // Create photo settings
+        let settings = AVCapturePhotoSettings()
+        settings.flashMode = .auto
         
-        photoOutput.capturePhoto(with: photoSettings, delegate: self)
+        // Take the photo
+        photoOutput.capturePhoto(with: settings, delegate: self)
     }
     
-    // Start the capture session (call this when the camera view appears)
-    func startSession() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.captureSession?.startRunning()
-        }
-    }
-    
-    // Stop the capture session (call this when the camera view disappears)
+    // Stop the session
     func stopSession() {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.captureSession?.stopRunning()
         }
     }
     
-    // Check photo library permission and save image
-    func saveImageToPhotoLibrary(_ image: UIImage, completion: @escaping (Result<Void, CameraError>) -> Void) {
-        PHPhotoLibrary.requestAuthorization { status in
-            switch status {
-            case .authorized, .limited:
-                UIImageWriteToSavedPhotosAlbum(image, self, #selector(self.image(_:didFinishSavingWithError:contextInfo:)), nil)
-                self.tempCompletion = completion
-            case .denied, .restricted:
-                DispatchQueue.main.async {
-                    completion(.failure(.photoLibraryPermissionDenied))
-                }
-            case .notDetermined:
-                // This shouldn't happen as we already requested permission
-                DispatchQueue.main.async {
-                    completion(.failure(.unknown))
-                }
-            @unknown default:
-                DispatchQueue.main.async {
-                    completion(.failure(.unknown))
-                }
-            }
-        }
-    }
-    
-    private var tempCompletion: ((Result<Void, CameraError>) -> Void)?
-    
-    @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
-        if let error = error {
-            tempCompletion?(.failure(.saveError))
-        } else {
-            tempCompletion?(.success(()))
-        }
-        tempCompletion = nil
+    // Reset the manager
+    func reset() {
+        stopSession()
+        captureSession = nil
+        photoOutput = nil
+        image = nil
     }
 }
 
+// MARK: - Photo Capture Delegate
 extension CameraManager: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error = error {
-            completionHandler?(.failure(.captureError))
+            completion?(.failure(.captureError))
             return
         }
         
         guard let imageData = photo.fileDataRepresentation(),
               let image = UIImage(data: imageData) else {
-            completionHandler?(.failure(.captureError))
+            completion?(.failure(.captureError))
             return
         }
         
-        self.image = image
-        completionHandler?(.success(image))
+        DispatchQueue.main.async { [weak self] in
+            self?.image = image
+            self?.completion?(.success(image))
+        }
     }
-} 
+}

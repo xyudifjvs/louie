@@ -9,7 +9,7 @@ import SwiftUI
 
 struct FoodLogConfirmationView: View {
     @Environment(\.presentationMode) var presentationMode
-    @ObservedObject var viewModel: NutritionViewModel
+    @ObservedObject var viewModel = NutritionViewModel2()
     
     let mealEntry: MealEntry
     @State private var userNotes: String = ""
@@ -293,21 +293,24 @@ struct FoodLogConfirmationView_Previews: PreviewProvider {
             FoodItem(
                 name: "Cheeseburger",
                 amount: "1 serving",
+                servingAmount: 100,
                 calories: 450,
+                category: .others,
                 macros: MacroData(protein: 25, carbs: 40, fat: 22, fiber: 2, sugar: 8),
                 micros: MicroData()
             ),
             FoodItem(
                 name: "French Fries",
                 amount: "Medium",
+                servingAmount: 100,
                 calories: 320,
+                category: .carbs,
                 macros: MacroData(protein: 4, carbs: 45, fat: 15, fiber: 4, sugar: 1),
                 micros: MicroData()
             )
         ]
         
         let mockMeal = MealEntry(
-            id: UUID(),
             timestamp: Date(),
             imageData: nil,
             imageURL: nil,
@@ -320,7 +323,6 @@ struct FoodLogConfirmationView_Previews: PreviewProvider {
         )
         
         return FoodLogConfirmationView(
-            viewModel: NutritionViewModel(),
             mealEntry: mockMeal
         )
         .preferredColorScheme(.dark)

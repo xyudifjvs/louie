@@ -87,7 +87,6 @@ class AIFoodAnalysisService {
                         
                         // Create meal entry
                         let mealEntry = MealEntry(
-                            id: UUID(),
                             timestamp: Date(),
                             imageData: imageData,
                             imageURL: nil,
@@ -173,7 +172,6 @@ class AIFoodAnalysisService {
         
         // Create meal entry
         let mealEntry = MealEntry(
-            id: UUID(),
             timestamp: Date(),
             imageData: imageData,
             imageURL: nil,
@@ -190,5 +188,34 @@ class AIFoodAnalysisService {
         print("Nutrition recommendations: \(recommendations.joined(separator: " "))")
         
         return mealEntry
+    }
+    
+    /// Determine the food category based on name
+    private func determineCategory(for foodName: String) -> FoodCategory {
+        let name = foodName.lowercased()
+        
+        // Proteins
+        if name.contains("chicken") || name.contains("beef") || name.contains("pork") || 
+           name.contains("fish") || name.contains("tofu") || name.contains("egg") || 
+           name.contains("meat") || name.contains("turkey") || name.contains("protein") {
+            return .proteins
+        }
+        
+        // Vegetables
+        if name.contains("broccoli") || name.contains("spinach") || name.contains("carrot") || 
+           name.contains("lettuce") || name.contains("vegetable") || name.contains("salad") || 
+           name.contains("greens") {
+            return .vegetables
+        }
+        
+        // Carbs
+        if name.contains("rice") || name.contains("bread") || name.contains("pasta") || 
+           name.contains("potato") || name.contains("cereal") || name.contains("grain") || 
+           name.contains("noodle") {
+            return .carbs
+        }
+        
+        // Default
+        return .others
     }
 } 

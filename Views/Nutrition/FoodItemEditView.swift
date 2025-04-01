@@ -9,17 +9,17 @@ import SwiftUI
 
 struct FoodItemEditView: View {
     @Environment(\.presentationMode) var presentationMode
-    @ObservedObject var viewModel: NutritionViewModel
+    @ObservedObject var viewModel = NutritionViewModel2()
+    @State private var foodItems: [FoodItem]
+    let meal: MealEntry?
+    let image: UIImage
     
-    @Binding var selectedLabels: [LabelAnnotation]
-    let foodImage: UIImage
-    
-    @State private var newFoodItem: String = ""
-    @State private var editingItem: String?
-    @State private var itemToEdit: String = ""
-    @State private var isLookingUpNutrition = false
-    @State private var errorMessage: String?
-    @State private var showingError = false
+    init(viewModel: NutritionViewModel2, foodItems: [FoodItem], meal: MealEntry? = nil, image: UIImage) {
+        self.viewModel = viewModel
+        self._foodItems = State(initialValue: foodItems)
+        self.meal = meal
+        self.image = image
+    }
     
     var body: some View {
         ZStack {
@@ -31,200 +31,157 @@ struct FoodItemEditView: View {
             
             VStack(spacing: 0) {
                 // Header
-                Text("Edit Food Items")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(.top, 20)
-                
-                Text("Add, remove, or edit detected items")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
-                    .padding(.bottom, 20)
-                
-                // Add new item field
                 HStack {
-                    TextField("Add a food item", text: $newFoodItem)
-                        .padding()
-                        .background(Color.white.opacity(0.1))
-                        .cornerRadius(8)
-                        .foregroundColor(.white)
-                        .accentColor(.white)
-                    
-                    Button(action: addNewItem) {
-                        Image(systemName: "plus.circle.fill")
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.title2)
                             .foregroundColor(.white)
-                            .font(.system(size: 24))
                     }
-                    .disabled(newFoodItem.isEmpty)
-                    .opacity(newFoodItem.isEmpty ? 0.5 : 1.0)
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 20)
-                
-                // Current items list
-                if selectedLabels.isEmpty {
+                    
                     Spacer()
-                    Text("No food items selected")
-                        .foregroundColor(.white.opacity(0.7))
-                        .italic()
-                    Spacer()
-                } else {
-                    List {
-                        ForEach(selectedLabels, id: \.description) { label in
-                            if editingItem == label.description {
-                                // Editing mode
-                                HStack {
-                                    TextField("Edit item", text: $itemToEdit)
-                                        .foregroundColor(.white)
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        saveEdit(originalItem: label)
-                                    }) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(.green)
-                                    }
-                                    
-                                    Button(action: {
-                                        editingItem = nil
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.red)
-                                    }
-                                }
-                            } else {
-                                // Display mode
-                                HStack {
-                                    Text(label.description.capitalized)
-                                        .foregroundColor(.white)
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        startEditing(label)
-                                    }) {
-                                        Image(systemName: "pencil.circle")
-                                            .foregroundColor(.blue)
-                                    }
-                                    
-                                    Button(action: {
-                                        removeItem(label)
-                                    }) {
-                                        Image(systemName: "trash.circle")
-                                            .foregroundColor(.red)
-                                    }
-                                }
-                            }
-                        }
-                        .listRowBackground(Color.black.opacity(0.2))
-                    }
-                    .listStyle(PlainListStyle())
-                    .background(Color.clear)
-                }
-                
-                // Done button
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("Done")
+                    
+                    Text("Edit Foods")
+                        .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(Color(hexCode: "2a6041"))
-                        .cornerRadius(10)
-                        .padding(.horizontal)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        saveMeal()
+                    }) {
+                        Text("Save")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                    }
                 }
-                .padding(.vertical, 20)
-            }
-            
-            // Loading overlay
-            if isLookingUpNutrition {
-                Rectangle()
-                    .fill(Color.black.opacity(0.7))
-                    .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        VStack {
-                            Text("Looking up nutrition data...")
-                                .font(.headline)
-                                .foregroundColor(.white)
+                .padding()
+                
+                // Meal image thumbnail
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 100, height: 100)
+                    .cornerRadius(10)
+                    .padding(.vertical)
+                
+                // Food items list
+                List {
+                    ForEach(0..<foodItems.count, id: \.self) { index in
+                        VStack(alignment: .leading) {
+                            HStack {
+                                TextField("Food name", text: $foodItems[index].name)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    // Update calorie value
+                                    let newCalories = Int.random(in: 50...500)
+                                    foodItems[index].calories = newCalories
+                                }) {
+                                    HStack {
+                                        Text("\(foodItems[index].calories) cal")
+                                        Image(systemName: "arrow.2.circlepath")
+                                    }
+                                }
+                                .foregroundColor(.primary)
+                            }
                             
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.5)
-                                .padding()
+                            // Serving size
+                            TextField("Serving size", text: $foodItems[index].amount)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                    )
+                        .padding(.vertical, 4)
+                    }
+                    .onDelete(perform: deleteItem)
+                    
+                    Button(action: {
+                        addFoodItem()
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add Food Item")
+                        }
+                    }
+                }
+                .listStyle(InsetGroupedListStyle())
             }
         }
-        .onTapGesture {
-            // Dismiss keyboard when tapping outside
-            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-        }
-        .alert(isPresented: $showingError) {
-            Alert(
-                title: Text("Error"),
-                message: Text(errorMessage ?? "An unknown error occurred"),
-                dismissButton: .default(Text("OK"))
+    }
+    
+    private func deleteItem(at offsets: IndexSet) {
+        foodItems.remove(atOffsets: offsets)
+    }
+    
+    private func addFoodItem() {
+        // Add a new empty food item
+        let newItem = FoodItem(
+            name: "New Food Item",
+            amount: "1 serving",
+            servingAmount: 100,
+            calories: 100,
+            category: .others,
+            macros: MacroData(
+                protein: 5,
+                carbs: 10,
+                fat: 5,
+                fiber: 1,
+                sugar: 2
+            ),
+            micros: MicroData()
+        )
+        
+        foodItems.append(newItem)
+    }
+    
+    private func saveMeal() {
+        // Calculate nutrition score
+        let nutritionScore = viewModel.calculateNutritionScore(foods: foodItems)
+        
+        // Calculate total macros
+        let totalMacros = foodItems.reduce(MacroData(protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0)) { result, food in
+            return MacroData(
+                protein: result.protein + food.macros.protein,
+                carbs: result.carbs + food.macros.carbs,
+                fat: result.fat + food.macros.fat,
+                fiber: result.fiber + food.macros.fiber,
+                sugar: result.sugar + food.macros.sugar
             )
         }
-    }
-    
-    // Add a new food item
-    private func addNewItem() {
-        guard !newFoodItem.isEmpty else { return }
         
-        let itemName = newFoodItem.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Create image data
+        let imageData = image.jpegData(compressionQuality: 0.7)
         
-        // Create a temporary label with low confidence
-        let tempLabel = LabelAnnotation(
-            description: itemName,
-            score: Float(0.7),
-            topicality: Float(0.7)
-        )
-        
-        // Add to selectedLabels 
-        selectedLabels.append(tempLabel)
-        
-        // Clear the input field
-        newFoodItem = ""
-    }
-    
-    // Start editing an item
-    private func startEditing(_ label: LabelAnnotation) {
-        editingItem = label.description
-        itemToEdit = label.description
-    }
-    
-    // Save edited item
-    private func saveEdit(originalItem: LabelAnnotation) {
-        guard let index = selectedLabels.firstIndex(where: { $0.description == originalItem.description }),
-              !itemToEdit.isEmpty else {
-            editingItem = nil
-            return
+        // Create or update meal entry
+        if var existingMeal = meal {
+            // Update existing meal
+            existingMeal.foods = foodItems
+            existingMeal.nutritionScore = nutritionScore
+            existingMeal.macronutrients = totalMacros
+            existingMeal.isManuallyAdjusted = true
+            viewModel.saveMeal(existingMeal)
+        } else {
+            // Create new meal
+            let newMeal = MealEntry(
+                timestamp: Date(),
+                imageData: imageData,
+                imageURL: nil,
+                foods: foodItems,
+                nutritionScore: nutritionScore,
+                macronutrients: totalMacros,
+                micronutrients: MicroData(),
+                userNotes: nil,
+                isManuallyAdjusted: true
+            )
+            viewModel.saveMeal(newMeal)
         }
         
-        // Create a new label with updated description but same score
-        let updatedLabel = LabelAnnotation(
-            description: itemToEdit.trimmingCharacters(in: .whitespacesAndNewlines),
-            score: originalItem.score,
-            topicality: originalItem.topicality
-        )
-        
-        // Replace the original item
-        selectedLabels[index] = updatedLabel
-        
-        // Exit editing mode
-        editingItem = nil
-    }
-    
-    // Remove an item
-    private func removeItem(_ label: LabelAnnotation) {
-        if let index = selectedLabels.firstIndex(where: { $0.description == label.description }) {
-            selectedLabels.remove(at: index)
-        }
+        // Dismiss the view
+        presentationMode.wrappedValue.dismiss()
     }
 }
 
@@ -238,9 +195,10 @@ struct FoodItemEditView_Previews: PreviewProvider {
         ]
         
         return FoodItemEditView(
-            viewModel: NutritionViewModel(),
-            selectedLabels: $mockLabels,
-            foodImage: UIImage(systemName: "photo")!
+            viewModel: NutritionViewModel2(),
+            foodItems: [],
+            meal: nil,
+            image: UIImage(systemName: "photo")!
         )
         .preferredColorScheme(.dark)
     }

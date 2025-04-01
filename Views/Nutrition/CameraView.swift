@@ -1,4 +1,3 @@
-//
 //  CameraView.swift
 //  Louie
 //
@@ -8,12 +7,11 @@
 import SwiftUI
 import AVFoundation
 import UIKit
-import SwiftUI
 
 struct CameraView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var cameraManager = CameraManager.shared
-    @ObservedObject var viewModel: NutritionViewModel
+    @ObservedObject var viewModel = NutritionViewModel2()
     
     @State private var isCaptured = false
     @State private var isAnalyzing = false
@@ -22,6 +20,7 @@ struct CameraView: View {
     @State private var showResultsView = false
     @State private var detectedLabels: [LabelAnnotation] = []
     @State private var analyzedImage: UIImage?
+    @State private var useAnimatedFlow = true
     
     var body: some View {
         ZStack {
@@ -44,9 +43,10 @@ struct CameraView: View {
                     
                     HStack(spacing: 50) {
                         Button(action: {
+                            // Reset and retake
                             isCaptured = false
                             cameraManager.image = nil
-                            cameraManager.startSession()
+                            cameraManager.setupAndStartSession()
                         }) {
                             HStack {
                                 Image(systemName: "arrow.left")
@@ -75,41 +75,45 @@ struct CameraView: View {
                 }
             } else {
                 // Show camera preview
-                CameraPreviewView(session: cameraManager.setupCaptureSession())
-                    .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        VStack {
-                            HStack {
-                                Button(action: {
-                                    presentationMode.wrappedValue.dismiss()
-                                }) {
-                                    Image(systemName: "xmark")
-                                        .font(.title)
-                                        .foregroundColor(.white)
-                                        .padding()
-                                }
-                                
-                                Spacer()
-                            }
-                            
-                            Spacer()
-                            
-                            // Capture button
+                ZStack {
+                    CameraPreviewView(session: cameraManager.captureSession)
+                        .id(cameraManager.captureSession)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    // Controls overlay
+                    VStack {
+                        HStack {
                             Button(action: {
-                                takePicture()
+                                presentationMode.wrappedValue.dismiss()
                             }) {
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 3)
-                                    .frame(width: 70, height: 70)
-                                    .overlay(
-                                        Circle()
-                                            .fill(Color.white)
-                                            .frame(width: 60, height: 60)
-                                    )
+                                Image(systemName: "xmark")
+                                    .font(.title)
+                                    .foregroundColor(.white)
+                                    .padding()
                             }
-                            .padding(.bottom, 40)
+                            Spacer()
                         }
-                    )
+                        .padding(.top, 44) // Add explicit top padding
+                        
+                        Spacer()
+                        
+                        // Capture button
+                        Button(action: {
+                            takePicture()
+                        }) {
+                            Circle()
+                                .stroke(Color.white, lineWidth: 3)
+                                .frame(width: 70, height: 70)
+                                .overlay(
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: 60, height: 60)
+                                )
+                        }
+                        .padding(.bottom, 80) // Add more bottom padding
+                    }
+                    .padding(.horizontal)
+                }
             }
             
             // Loading overlay when analyzing
@@ -146,12 +150,24 @@ struct CameraView: View {
                 }
             )
         }
-        .fullScreenCover(isPresented: $showResultsView) {
-            FoodDetectionResultView(
-                viewModel: viewModel,
-                detectedLabels: detectedLabels,
-                foodImage: analyzedImage ?? UIImage()
-            )
+        .fullScreenCover(isPresented: $showResultsView, onDismiss: {
+            // Dismiss back to the main view when the meal flow is completed
+            presentationMode.wrappedValue.dismiss()
+        }) {
+            if useAnimatedFlow {
+                // Use the new animated UI flow
+                NutritionAnimatedFlowView(
+                    foodImage: analyzedImage ?? UIImage(),
+                    detectedLabels: detectedLabels.map { FoodLabelAnnotation(description: $0.description, confidence: Double($0.score)) }
+                )
+            } else {
+                // Use the standard UI flow
+                FoodDetectionResultView(
+                    viewModel: viewModel,
+                    detectedLabels: detectedLabels,
+                    foodImage: analyzedImage ?? UIImage()
+                )
+            }
         }
     }
     
@@ -159,23 +175,28 @@ struct CameraView: View {
         cameraManager.checkCameraPermission { granted in
             if granted {
                 DispatchQueue.main.async {
-                    cameraManager.startSession()
+                    cameraManager.setupAndStartSession()
                 }
             } else {
-                alertMessage = CameraError.permissionDenied.description
+                alertMessage = "Camera permission was denied. Please enable it in Settings."
                 showAlert = true
             }
         }
     }
     
     private func takePicture() {
+        // Add haptic feedback for button press
+        let feedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
+        feedbackGenerator.impactOccurred()
+        
         cameraManager.capturePhoto { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(_):
                     cameraManager.stopSession()
                     isCaptured = true
-                    playHapticFeedback()
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.success)
                 
                 case .failure(let error):
                     alertMessage = error.description
@@ -195,8 +216,6 @@ struct CameraView: View {
                 
                 switch result {
                 case .success(let foodLabels):
-                    print("Successfully detected \(foodLabels.count) food labels")
-                    
                     // Store the results and show the detection view
                     self.detectedLabels = foodLabels
                     self.analyzedImage = image
@@ -209,11 +228,6 @@ struct CameraView: View {
             }
         }
     }
-    
-    private func playHapticFeedback() {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-    }
 }
 
 // MARK: - Camera Preview UIViewRepresentable
@@ -224,7 +238,9 @@ struct CameraPreviewView: UIViewRepresentable {
         let view = UIView(frame: UIScreen.main.bounds)
         view.backgroundColor = .black
         
-        guard let session = session else { return view }
+        guard let session = session else {
+            return view
+        }
         
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.frame = view.bounds
@@ -234,7 +250,13 @@ struct CameraPreviewView: UIViewRepresentable {
         return view
     }
     
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_ uiView: UIView, context: Context) {
+        if let previewLayer = uiView.layer.sublayers?.first as? AVCaptureVideoPreviewLayer {
+            previewLayer.session = session
+        }
+    }
 }
 
-// Note: Removed duplicate Color extension here. Using the one from Utilities/Color+Hex.swift 
+// Note: Removed duplicate Color extension here. Using the one from Utilities/Color+Hex.swift
+
+

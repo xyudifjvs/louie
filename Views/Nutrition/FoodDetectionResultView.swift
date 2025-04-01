@@ -7,9 +7,113 @@
 
 import SwiftUI
 
+// MARK: - Dummy Decoder for MacroData initialization
+struct DummyDecoder: Decoder {
+    var codingPath: [CodingKey] { return [] }
+    var userInfo: [CodingUserInfoKey: Any] { return [:] }
+    func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
+        let container = DummyKeyedDecodingContainer<Key>()
+        return KeyedDecodingContainer(container)
+    }
+    func unkeyedContainer() throws -> UnkeyedDecodingContainer {
+        return DummyUnkeyedDecodingContainer()
+    }
+    func singleValueContainer() throws -> SingleValueDecodingContainer {
+        return DummySingleValueDecodingContainer()
+    }
+}
+ 
+struct DummyKeyedDecodingContainer<K: CodingKey>: KeyedDecodingContainerProtocol {
+    var allKeys: [K] = []
+    var codingPath: [CodingKey] = []
+    func contains(_ key: K) -> Bool { return false }
+    func decodeNil(forKey key: K) throws -> Bool { return true }
+    func decode(_ type: Bool.Type, forKey key: K) throws -> Bool { return false }
+    func decode(_ type: String.Type, forKey key: K) throws -> String { return "" }
+    func decode(_ type: Double.Type, forKey key: K) throws -> Double { return 0.0 }
+    func decode(_ type: Float.Type, forKey key: K) throws -> Float { return 0.0 }
+    func decode(_ type: Int.Type, forKey key: K) throws -> Int { return 0 }
+    func decode(_ type: Int8.Type, forKey key: K) throws -> Int8 { return 0 }
+    func decode(_ type: Int16.Type, forKey key: K) throws -> Int16 { return 0 }
+    func decode(_ type: Int32.Type, forKey key: K) throws -> Int32 { return 0 }
+    func decode(_ type: Int64.Type, forKey key: K) throws -> Int64 { return 0 }
+    func decode(_ type: UInt.Type, forKey key: K) throws -> UInt { return 0 }
+    func decode(_ type: UInt8.Type, forKey key: K) throws -> UInt8 { return 0 }
+    func decode(_ type: UInt16.Type, forKey key: K) throws -> UInt16 { return 0 }
+    func decode(_ type: UInt32.Type, forKey key: K) throws -> UInt32 { return 0 }
+    func decode(_ type: UInt64.Type, forKey key: K) throws -> UInt64 { return 0 }
+    func decode<T>(_ type: T.Type, forKey key: K) throws -> T where T : Decodable {
+        return try T(from: DummyDecoder())
+    }
+    func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: K) throws -> KeyedDecodingContainer<NestedKey> {
+        let container = DummyKeyedDecodingContainer<NestedKey>()
+        return KeyedDecodingContainer(container)
+    }
+    func nestedUnkeyedContainer(forKey key: K) throws -> UnkeyedDecodingContainer {
+        return DummyUnkeyedDecodingContainer()
+    }
+    func superDecoder() throws -> Decoder { return DummyDecoder() }
+    func superDecoder(forKey key: K) throws -> Decoder { return DummyDecoder() }
+}
+ 
+struct DummyUnkeyedDecodingContainer: UnkeyedDecodingContainer {
+    var currentIndex: Int = 0
+    var count: Int? = 0
+    var isAtEnd: Bool { return true }
+    var codingPath: [CodingKey] = []
+    mutating func decodeNil() throws -> Bool { return true }
+    mutating func decode(_ type: Bool.Type) throws -> Bool { return false }
+    mutating func decode(_ type: String.Type) throws -> String { return "" }
+    mutating func decode(_ type: Double.Type) throws -> Double { return 0.0 }
+    mutating func decode(_ type: Float.Type) throws -> Float { return 0.0 }
+    mutating func decode(_ type: Int.Type) throws -> Int { return 0 }
+    mutating func decode(_ type: Int8.Type) throws -> Int8 { return 0 }
+    mutating func decode(_ type: Int16.Type) throws -> Int16 { return 0 }
+    mutating func decode(_ type: Int32.Type) throws -> Int32 { return 0 }
+    mutating func decode(_ type: Int64.Type) throws -> Int64 { return 0 }
+    mutating func decode(_ type: UInt.Type) throws -> UInt { return 0 }
+    mutating func decode(_ type: UInt8.Type) throws -> UInt8 { return 0 }
+    mutating func decode(_ type: UInt16.Type) throws -> UInt16 { return 0 }
+    mutating func decode(_ type: UInt32.Type) throws -> UInt32 { return 0 }
+    mutating func decode(_ type: UInt64.Type) throws -> UInt64 { return 0 }
+    mutating func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
+        return try T(from: DummyDecoder())
+    }
+    mutating func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> {
+        let container = DummyKeyedDecodingContainer<NestedKey>()
+        return KeyedDecodingContainer(container)
+    }
+    mutating func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
+        return DummyUnkeyedDecodingContainer()
+    }
+    mutating func superDecoder() throws -> Decoder { return DummyDecoder() }
+}
+ 
+struct DummySingleValueDecodingContainer: SingleValueDecodingContainer {
+    var codingPath: [CodingKey] = []
+    func decodeNil() -> Bool { return true }
+    func decode(_ type: Bool.Type) throws -> Bool { return false }
+    func decode(_ type: String.Type) throws -> String { return "" }
+    func decode(_ type: Double.Type) throws -> Double { return 0.0 }
+    func decode(_ type: Float.Type) throws -> Float { return 0.0 }
+    func decode(_ type: Int.Type) throws -> Int { return 0 }
+    func decode(_ type: Int8.Type) throws -> Int8 { return 0 }
+    func decode(_ type: Int16.Type) throws -> Int16 { return 0 }
+    func decode(_ type: Int32.Type) throws -> Int32 { return 0 }
+    func decode(_ type: Int64.Type) throws -> Int64 { return 0 }
+    func decode(_ type: UInt.Type) throws -> UInt { return 0 }
+    func decode(_ type: UInt8.Type) throws -> UInt8 { return 0 }
+    func decode(_ type: UInt16.Type) throws -> UInt16 { return 0 }
+    func decode(_ type: UInt32.Type) throws -> UInt32 { return 0 }
+    func decode(_ type: UInt64.Type) throws -> UInt64 { return 0 }
+    func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
+        return try T(from: DummyDecoder())
+    }
+}
+
 struct FoodDetectionResultView: View {
     @Environment(\.presentationMode) var presentationMode
-    @ObservedObject var viewModel: NutritionViewModel
+    @ObservedObject var viewModel = NutritionViewModel2()
     
     let detectedLabels: [LabelAnnotation]
     let foodImage: UIImage
@@ -23,7 +127,7 @@ struct FoodDetectionResultView: View {
     @State private var showConfirmationView = false
     
     // Initialize with detected labels and preselect all of them
-    init(viewModel: NutritionViewModel, detectedLabels: [LabelAnnotation], foodImage: UIImage) {
+    init(viewModel: NutritionViewModel2, detectedLabels: [LabelAnnotation], foodImage: UIImage) {
         self.viewModel = viewModel
         self.detectedLabels = detectedLabels
         self.foodImage = foodImage
@@ -143,7 +247,23 @@ struct FoodDetectionResultView: View {
                 .foregroundColor(.white)
         })
         .sheet(isPresented: $showingEditView) {
-            FoodItemEditView(viewModel: viewModel, selectedLabels: $selectedLabels, foodImage: foodImage)
+            // Create placeholder FoodItems from selected labels for editing
+            let itemsToEdit = selectedLabels.map { label in
+                // Directly initialize using try! as DummyDecoder won't throw
+                let macroData = try! MacroData(from: DummyDecoder())
+                let microData = try! MicroData(from: DummyDecoder())
+                return FoodItem(
+                    name: label.description, 
+                    amount: "1 serving", 
+                    servingAmount: 100,
+                    calories: 0, 
+                    category: .others,
+                    macros: macroData, 
+                    micros: microData
+                )
+            }
+            // Use correct labels: items: and from:
+            FoodItemEditView(viewModel: viewModel, foodItems: itemsToEdit, meal: nil, image: foodImage)
         }
         .alert(isPresented: $showingError) {
             Alert(
@@ -249,11 +369,10 @@ struct FoodDetectionResultView_Previews: PreviewProvider {
         ]
         
         return FoodDetectionResultView(
-            viewModel: NutritionViewModel(),
+            viewModel: NutritionViewModel2(),
             detectedLabels: mockLabels,
             foodImage: UIImage(systemName: "photo")!
         )
         .preferredColorScheme(.dark)
     }
 }
-

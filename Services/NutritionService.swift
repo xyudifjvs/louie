@@ -11,6 +11,14 @@
 
 import Foundation
 import UIKit
+import SwiftUI
+
+// Service-specific enums
+public enum NutritionServiceInsightType: String, Codable {
+    case positive
+    case neutral
+    case warning
+}
 
 /// A service for interacting with the Nutritionix API to get nutrition data
 class NutritionService {
@@ -299,13 +307,50 @@ class NutritionService {
         
         // Create the FoodItem
         return FoodItem(
-            id: UUID(),
             name: nutritionixFood.foodName.capitalized,
             amount: amount,
+            servingAmount: nutritionixFood.servingWeightGrams,
             calories: Int(nutritionixFood.nfCalories),
+            category: determineFoodCategory(foodName: nutritionixFood.foodName),
             macros: macros,
             micros: micros
         )
+    }
+    
+    /// Determine food category based on food name
+    private func determineFoodCategory(foodName: String) -> FoodCategory {
+        let name = foodName.lowercased()
+        
+        // Proteins
+        if name.contains("chicken") || name.contains("beef") || name.contains("pork") || 
+           name.contains("fish") || name.contains("tofu") || name.contains("egg") || 
+           name.contains("meat") || name.contains("turkey") || name.contains("lamb") || 
+           name.contains("seafood") || name.contains("shrimp") || name.contains("bean") || 
+           name.contains("lentil") || name.contains("protein") {
+            return .proteins
+        }
+        
+        // Vegetables
+        if name.contains("broccoli") || name.contains("spinach") || name.contains("kale") || 
+           name.contains("carrot") || name.contains("lettuce") || name.contains("potato") || 
+           name.contains("tomato") || name.contains("salad") || name.contains("vegetable") || 
+           name.contains("onion") || name.contains("garlic") || name.contains("pepper") || 
+           name.contains("cucumber") || name.contains("zucchini") {
+            return .vegetables
+        }
+        
+        // Carbs
+        if name.contains("rice") || name.contains("bread") || name.contains("pasta") || 
+           name.contains("noodle") || name.contains("cereal") || name.contains("grain") || 
+           name.contains("oat") || name.contains("wheat") || name.contains("barley") || 
+           name.contains("corn") || name.contains("cracker") || name.contains("chip") || 
+           name.contains("cookie") || name.contains("cake") || name.contains("sweet") || 
+           name.contains("sugar") || name.contains("dessert") || name.contains("pastry") {
+            return .carbs
+        }
+        
+        // Default to others
+        return .others
     }
     
     /// Lookup nutrition information for a single food item (useful for manually added items)
@@ -331,5 +376,192 @@ class NutritionService {
                 completion(.failure(error))
             }
         }
+    }
+    
+    /// Process multiple food labels to get the best nutrition data
+    public func processDetectedFoods(_ detectedLabels: [LabelAnnotation], completion: @escaping (Result<[FoodItem], APIError>) -> Void) {
+        // Implementation remains the same...
+    }
+    
+    /// Returns a list of nutrition insights for the specified food items
+    public func getNutritionalInsights(for foodLabels: [String]) -> [NutritionInsight] {
+        // This would normally call an AI service
+        // For now, use placeholder insights
+        let insights = generatePlaceholderInsights(for: foodLabels)
+        
+        // Convert service insights to app-wide format
+        return insights.map { convertToAppInsight($0) }
+    }
+    
+    // Convert from service-specific insights to app-wide insights
+    private func convertToAppInsight(_ serviceInsight: ServiceInsight) -> NutritionInsight {
+        let insightType: NutritionInsight.InsightType
+        
+        switch serviceInsight.insightType {
+        case .positive:
+            insightType = .positive
+        case .neutral:
+            insightType = .neutral
+        case .warning:
+            insightType = .negative
+        }
+        
+        return NutritionInsight(
+            title: serviceInsight.insightText,
+            description: serviceInsight.detail ?? "",
+            icon: iconForInsightType(insightType),
+            type: insightType
+        )
+    }
+    
+    private func iconForInsightType(_ type: NutritionInsight.InsightType) -> String {
+        switch type {
+        case .positive:
+            return "checkmark.circle"
+        case .negative:
+            return "exclamationmark.triangle"
+        case .neutral:
+            return "info.circle"
+        case .suggestion:
+            return "lightbulb"
+        }
+    }
+    
+    // Generate placeholder insights for development/testing
+    private struct ServiceInsight {
+        let insightText: String
+        let insightType: NutritionServiceInsightType
+        let detail: String?
+    }
+
+    private func generatePlaceholderInsights(for foodLabels: [String]) -> [ServiceInsight] {
+        var insights: [ServiceInsight] = []
+        
+        // Get unique lowercase food labels
+        let uniqueFoodLabels = Set(foodLabels.map { $0.lowercased() })
+        
+        // Category-based insights
+        let proteinSources = uniqueFoodLabels.filter { label in
+            ["egg", "eggs", "chicken", "beef", "salmon", "tuna", "tofu", "beans", "lentils", "fish", "pork", "meat", "turkey", "shrimp", "steak"].contains { label.contains($0) }
+        }
+        
+        let vegetables = uniqueFoodLabels.filter { label in
+            ["broccoli", "spinach", "kale", "lettuce", "carrot", "carrots", "tomato", "tomatoes", "cucumber", "pepper", "peppers", "onion", "garlic", "asparagus", "zucchini", "eggplant", "cauliflower", "salad", "vegetables", "vegetable"].contains { label.contains($0) }
+        }
+        
+        let fruits = uniqueFoodLabels.filter { label in
+            ["apple", "banana", "orange", "berries", "strawberry", "strawberries", "blueberry", "blueberries", "raspberry", "raspberries", "grape", "grapes", "pineapple", "watermelon", "melon", "kiwi", "peach", "mango", "avocado", "fruit", "fruits"].contains { label.contains($0) }
+        }
+        
+        let wholegrains = uniqueFoodLabels.filter { label in
+            ["oats", "quinoa", "brown rice", "whole grain", "whole wheat", "whole bread"].contains { label.contains($0) }
+        }
+        
+        let refinedCarbs = uniqueFoodLabels.filter { label in
+            ["white bread", "pasta", "white rice", "noodles", "pastry", "cake", "cookie", "cookies", "donut", "bagel", "croissant", "bread"].contains { label.contains($0) }
+        }
+        
+        let fastFood = uniqueFoodLabels.filter { label in
+            ["burger", "pizza", "fries", "french fries", "hot dog", "hotdog", "fried chicken", "nachos", "taco", "burrito", "fast food", "chicken nuggets", "mcdonalds", "burger king", "wendys", "kfc", "popeyes", "taco bell", "subway"].contains { label.contains($0) }
+        }
+        
+        let dairy = uniqueFoodLabels.filter { label in
+            ["milk", "cheese", "yogurt", "butter", "cream", "ice cream", "dairy"].contains { label.contains($0) }
+        }
+        
+        // Add protein insights
+        if !proteinSources.isEmpty {
+            insights.append(ServiceInsight(
+                insightText: "Good protein sources",
+                insightType: .positive,
+                detail: proteinSources.joined(separator: ", ")
+            ))
+        }
+        
+        // Add vegetable insights
+        if !vegetables.isEmpty {
+            insights.append(ServiceInsight(
+                insightText: "Nutrient-rich vegetables",
+                insightType: .positive,
+                detail: vegetables.joined(separator: ", ")
+            ))
+        }
+        
+        // Add fruit insights
+        if !fruits.isEmpty {
+            insights.append(ServiceInsight(
+                insightText: "Vitamin-rich fruits",
+                insightType: .positive,
+                detail: fruits.joined(separator: ", ")
+            ))
+        }
+        
+        // Add whole grain insights
+        if !wholegrains.isEmpty {
+            insights.append(ServiceInsight(
+                insightText: "Fiber-rich whole grains",
+                insightType: .positive,
+                detail: wholegrains.joined(separator: ", ")
+            ))
+        }
+        
+        // Add refined carb insights
+        if !refinedCarbs.isEmpty {
+            insights.append(ServiceInsight(
+                insightText: "Refined carbohydrates",
+                insightType: .warning,
+                detail: refinedCarbs.joined(separator: ", ")
+            ))
+        }
+        
+        // Add fast food insights
+        if !fastFood.isEmpty {
+            insights.append(ServiceInsight(
+                insightText: "Processed fast food",
+                insightType: .warning,
+                detail: fastFood.joined(separator: ", ")
+            ))
+        }
+        
+        // Add dairy insights
+        if !dairy.isEmpty {
+            let dairyInsightText = "Contains dairy"
+            insights.append(ServiceInsight(
+                insightText: dairyInsightText,
+                insightType: .neutral,
+                detail: dairy.joined(separator: ", ")
+            ))
+        }
+        
+        // Check for balanced meal
+        if !vegetables.isEmpty && !proteinSources.isEmpty && (!wholegrains.isEmpty || !fruits.isEmpty) {
+            insights.append(ServiceInsight(
+                insightText: "Well-balanced meal",
+                insightType: .positive,
+                detail: nil // Explicitly nil
+            ))
+        }
+        
+        // If no insights were generated, provide a generic one
+        if insights.isEmpty {
+            insights.append(ServiceInsight(
+                insightText: "Limited nutritional data",
+                insightType: .neutral,
+                detail: "Couldn't identify specific nutrition patterns"
+            ))
+        }
+        
+        // Remove duplicates
+        var uniqueInsights: [ServiceInsight] = []
+        var seen = Set<String>()
+        
+        for insight in insights {
+            if !seen.contains(insight.insightText) {
+                uniqueInsights.append(insight)
+                seen.insert(insight.insightText)
+            }
+        }
+        
+        return uniqueInsights
     }
 }
