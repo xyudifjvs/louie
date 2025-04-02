@@ -759,6 +759,47 @@ public class NutritionViewModel2: ObservableObject {
         }
     }
     
+    /// Update nutrition goal targets without affecting progress values
+    public func updateGoalTargets(_ updatedGoals: NutritionGoals) {
+        // Preserve the progress values from the current goals
+        var newGoals = updatedGoals
+        newGoals.caloriesProgress = nutritionGoals.caloriesProgress
+        newGoals.proteinProgress = nutritionGoals.proteinProgress
+        newGoals.carbsProgress = nutritionGoals.carbsProgress
+        newGoals.fatProgress = nutritionGoals.fatProgress
+        
+        // Update the published property to trigger UI updates
+        DispatchQueue.main.async {
+            self.nutritionGoals = newGoals
+            
+            // Save updated goals to UserDefaults
+            newGoals.saveToUserDefaults()
+            
+            // Also save to CloudKit for sync across devices
+            if self.iCloudAvailable {
+                self.cloudKitManager.saveRecord(newGoals) { [weak self] (result: Result<NutritionGoals, CloudKitSyncError>) in
+                    guard let self = self else { return }
+                    
+                    switch result {
+                    case .success(let savedGoals):
+                        print("✅ Successfully saved updated nutrition goal targets to CloudKit")
+                        
+                        // Update goals with the CloudKit record ID
+                        DispatchQueue.main.async {
+                            // Create a new instance to trigger UI updates
+                            var updatedGoals = savedGoals
+                            self.nutritionGoals = updatedGoals
+                            updatedGoals.saveToUserDefaults()
+                        }
+                        
+                    case .failure(let error):
+                        print("❌ Error saving nutrition goal targets to CloudKit: \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
+    }
+    
     // MARK: - Computed Properties
     
     /// Returns only meals from today, sorted by timestamp (newest first)

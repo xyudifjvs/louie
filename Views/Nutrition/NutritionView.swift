@@ -148,7 +148,7 @@ struct NutritionView: View {
                     // Bottom 50% - Weekly Goals section
                     VStack {
                         // Weekly Goals View
-                        WeeklyGoalsView(goals: $viewModel.nutritionGoals)
+                        WeeklyGoalsView(goals: $viewModel.nutritionGoals, viewModel: viewModel)
                             .padding(.top, 16)
                             .padding(.bottom, 30) // Reduced padding to avoid too much empty space
                     }

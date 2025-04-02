@@ -10,6 +10,7 @@ import SwiftUI
 struct GoalsEditorView: View {
     @Binding var goals: NutritionGoals
     @Binding var isPresented: Bool
+    @ObservedObject var viewModel: NutritionViewModel2
     
     // Temporary state for editing
     @State private var caloriesInput: String = ""
@@ -151,14 +152,15 @@ struct GoalsEditorView: View {
             return
         }
         
-        // Update goals
-        goals.caloriesGoal = calories
-        goals.proteinGoal = protein
-        goals.carbsGoal = carbs
-        goals.fatGoal = fat
+        // Create a new instance of NutritionGoals with the updated values
+        var updatedGoals = goals
+        updatedGoals.caloriesGoal = calories
+        updatedGoals.proteinGoal = protein
+        updatedGoals.carbsGoal = carbs
+        updatedGoals.fatGoal = fat
         
-        // Save to UserDefaults
-        goals.saveToUserDefaults()
+        // Use the view model to update the goals while preserving progress
+        viewModel.updateGoalTargets(updatedGoals)
         
         // Dismiss sheet
         isPresented = false

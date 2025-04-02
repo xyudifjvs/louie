@@ -10,6 +10,8 @@ import SwiftUI
 struct WeeklyGoalsView: View {
     @Binding var goals: NutritionGoals
     @State private var showGoalsEditor = false
+    @State private var viewKey = UUID() // For forcing view refresh
+    @ObservedObject var viewModel: NutritionViewModel2
     
     var body: some View {
         VStack(spacing: 16) {
@@ -47,6 +49,7 @@ struct WeeklyGoalsView: View {
                         unitText: "kcal"
                     )
                     .frame(width: 100, height: 100)
+                    .id("calories-\(viewKey)")
                     
                     // Protein ring
                     MacroRingView(
@@ -58,6 +61,7 @@ struct WeeklyGoalsView: View {
                         unitText: "g"
                     )
                     .frame(width: 100, height: 100)
+                    .id("protein-\(viewKey)")
                 }
                 
                 // Bottom row: Carbs and Fat
@@ -72,6 +76,7 @@ struct WeeklyGoalsView: View {
                         unitText: "g"
                     )
                     .frame(width: 100, height: 100)
+                    .id("carbs-\(viewKey)")
                     
                     // Fat ring
                     MacroRingView(
@@ -83,6 +88,7 @@ struct WeeklyGoalsView: View {
                         unitText: "g"
                     )
                     .frame(width: 100, height: 100)
+                    .id("fat-\(viewKey)")
                 }
                 
                 // Add more spacing at the bottom for padding
@@ -96,8 +102,11 @@ struct WeeklyGoalsView: View {
                 .fill(Color.black.opacity(0.2))
         )
         .padding(.horizontal)
-        .sheet(isPresented: $showGoalsEditor) {
-            GoalsEditorView(goals: $goals, isPresented: $showGoalsEditor)
+        .sheet(isPresented: $showGoalsEditor, onDismiss: {
+            // Force view to refresh when sheet is dismissed
+            viewKey = UUID()
+        }) {
+            GoalsEditorView(goals: $goals, isPresented: $showGoalsEditor, viewModel: viewModel)
         }
     }
 }
@@ -118,7 +127,7 @@ struct WeeklyGoalsView_Previews: PreviewProvider {
         ZStack {
             Color(hexCode: "1a1a2e").edgesIgnoringSafeArea(.all)
             
-            WeeklyGoalsView(goals: $previewGoals)
+            WeeklyGoalsView(goals: $previewGoals, viewModel: NutritionViewModel2())
         }
     }
 }

@@ -7,13 +7,13 @@
 
 import SwiftUI
 
-struct MacroRingView: View {
-    let value: Double
-    let maxValue: Double
-    let ringWidth: CGFloat
-    let title: String
-    let color: Color
-    let unitText: String
+struct MacroRingView: View, Equatable {
+    var value: Double
+    var maxValue: Double
+    var ringWidth: CGFloat = 10
+    var title: String
+    var color: Color
+    var unitText: String
     
     @State private var progress: CGFloat = 0
     
@@ -70,10 +70,30 @@ struct MacroRingView: View {
             }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.5)) {
-                progress = CGFloat(min(value / maxValue, 1.0))
-            }
+            updateProgress()
         }
+        .onChange(of: value) { _ in
+            updateProgress()
+        }
+        .onChange(of: maxValue) { _ in
+            updateProgress()
+        }
+    }
+    
+    private func updateProgress() {
+        withAnimation(.easeInOut(duration: 0.8)) {
+            progress = CGFloat(min(value / maxValue, 1.0))
+        }
+    }
+    
+    // Equatable implementation to detect changes in value or maxValue
+    static func == (lhs: MacroRingView, rhs: MacroRingView) -> Bool {
+        return lhs.value == rhs.value &&
+               lhs.maxValue == rhs.maxValue &&
+               lhs.ringWidth == rhs.ringWidth &&
+               lhs.title == rhs.title &&
+               lhs.color == rhs.color &&
+               lhs.unitText == rhs.unitText
     }
 }
 
