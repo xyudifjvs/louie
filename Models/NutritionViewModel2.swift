@@ -28,7 +28,13 @@ public class NutritionViewModel2: ObservableObject {
     private let nutritionService = NutritionService.shared
     private var cancellables = Set<AnyCancellable>()
     
+    // Directory for storing meal images
+    private let imageDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("MealImages")
+    
     public init() {
+        // Create image directory if it doesn't exist
+        createImageDirectoryIfNeeded()
+        
         // Subscribe to sync status changes
         cloudKitManager.$syncStatus
             .receive(on: DispatchQueue.main)
@@ -40,6 +46,51 @@ public class NutritionViewModel2: ObservableObject {
         
         // Setup app lifecycle observers
         setupAppLifecycleObservers()
+        
+        // Schedule periodic cleanup to remove any duplicates
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+            self?.cleanupDuplicateMeals()
+        }
+    }
+    
+    // Create image directory if it doesn't exist
+    private func createImageDirectoryIfNeeded() {
+        do {
+            if !FileManager.default.fileExists(atPath: imageDirectory.path) {
+                try FileManager.default.createDirectory(at: imageDirectory, withIntermediateDirectories: true)
+                print("📁 Created meal images directory")
+            }
+        } catch {
+            print("❌ Failed to create image directory: \(error.localizedDescription)")
+        }
+    }
+    
+    // Save image data to file system
+    private func saveImageToFileSystem(data: Data, mealId: UUID) -> String? {
+        let filename = mealId.uuidString + ".jpg"
+        let fileURL = imageDirectory.appendingPathComponent(filename)
+        
+        do {
+            try data.write(to: fileURL)
+            print("📸 Saved image for meal \(mealId) to file system")
+            return filename
+        } catch {
+            print("❌ Failed to save image: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    // Load image data from file system
+    private func loadImageFromFileSystem(filename: String) -> Data? {
+        let fileURL = imageDirectory.appendingPathComponent(filename)
+        
+        do {
+            let data = try Data(contentsOf: fileURL)
+            return data
+        } catch {
+            print("❌ Failed to load image \(filename): \(error.localizedDescription)")
+            return nil
+        }
     }
     
     // Calculate nutrition score based on multiple factors
@@ -113,70 +164,272 @@ public class NutritionViewModel2: ObservableObject {
     
     /// Fetch meals from CloudKit
     public func fetchMeals() {
-        print("🔄 Fetching meals from CloudKit...")
+        print("☁️ Fetching meals from CloudKit...")
+        isLoading = true
         errorMessage = nil
         
-        cloudKitManager.fetchRecords(ofType: MealEntry.self, sortDescriptors: [NSSortDescriptor(key: "timestamp", ascending: false)]) { [weak self] result in
+        // First, create a dictionary of existing meals by ID for quick lookup
+        let existingMealsById = Dictionary(uniqueKeysWithValues: 
+            self.meals.map { ($0.id, $0) })
+        
+        // Fetch meals from CloudKit
+        cloudKitManager.fetchRecords(
+            ofType: MealEntry.self,
+            sortDescriptors: [NSSortDescriptor(key: "timestamp", ascending: false)]
+        ) { [weak self] result in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
+                self.isLoading = false
+                
                 switch result {
-                case .success(let fetchedMeals):
-                    print("✅ Successfully fetched \(fetchedMeals.count) meals")
-                    withAnimation {
-                        self.meals = fetchedMeals
+                case .success(var fetchedMeals):
+                    print("✅ Successfully fetched \(fetchedMeals.count) meals from CloudKit")
+                    
+                    // Merge fetched meals with existing meals while preserving image data
+                    var mergedMeals = [MealEntry]()
+                    
+                    for var fetchedMeal in fetchedMeals {
+                        // If we already have this meal with image data in memory, and the fetched one doesn't have image data
+                        if let existingMeal = existingMealsById[fetchedMeal.id],
+                           let existingImageData = existingMeal.imageData,
+                           fetchedMeal.imageData == nil {
+                            // Preserve the image data we already have
+                            fetchedMeal.imageData = existingImageData
+                        }
+                        
+                        // Always ensure isManuallyAdjusted is false (feature removed)
+                        fetchedMeal.isManuallyAdjusted = false
+                        
+                        mergedMeals.append(fetchedMeal)
                     }
                     
+                    // Deduplicate meals
+                    mergedMeals = self.deduplicateMeals(mergedMeals)
+                    
+                    // Sort by timestamp (newest first)
+                    mergedMeals.sort { $0.timestamp > $1.timestamp }
+                    
+                    // Update the UI
+                    withAnimation {
+                        self.meals = mergedMeals
+                    }
+                    
+                    // Save to local cache
+                    self.saveToLocalCache()
+                    
                 case .failure(let error):
-                    self.errorMessage = error.localizedDescription
+                    self.errorMessage = "Error fetching meals: \(error.localizedDescription)"
                     print("❌ Error fetching meals: \(error.localizedDescription)")
                     
-                    // Try to load from local cache instead
+                    // Try to load from cache if CloudKit fetch fails
                     self.loadFromLocalCache()
                 }
             }
         }
     }
     
-    /// Save a meal to CloudKit
+    /// Save a new meal or update an existing one
     public func saveMeal(_ meal: MealEntry) {
         print("💾 Saving meal to CloudKit...")
-        errorMessage = nil
         
-        // First, save to local meals array for immediate UI update
-        var mealCopy = meal
+        // Make a copy of the meal to preserve image data
+        var mealToSave = meal
         
-        if let index = meals.firstIndex(where: { $0.id == meal.id }) {
-            // Update existing meal
-            meals[index] = mealCopy
-        } else {
-            // Add new meal to the beginning of the array
-            meals.insert(mealCopy, at: 0)
-        }
+        // Always ensure isManuallyAdjusted is false
+        mealToSave.isManuallyAdjusted = false
         
-        // Save to local cache
-        saveToLocalCache()
-        
-        // Then save to CloudKit
-        cloudKitManager.saveRecord(mealCopy) { [weak self] result in
-            guard let self = self else { return }
+        // IMPORTANT: Check for duplicates BEFORE adding to the local array
+        // First check if this meal already exists by ID
+        if let index = meals.firstIndex(where: { $0.id == mealToSave.id }) {
+            // This is an existing meal - update it
+            let existingMeal = meals[index]
             
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let savedMeal):
-                    print("✅ Successfully saved meal to CloudKit")
-                    
-                    // Update the meal in our array with the one returned from CloudKit (with recordID)
-                    if let index = self.meals.firstIndex(where: { $0.id == savedMeal.id }) {
-                        self.meals[index] = savedMeal
+            // If the existing meal has image data and the new one doesn't, preserve it
+            if mealToSave.imageData == nil && existingMeal.imageData != nil {
+                mealToSave.imageData = existingMeal.imageData
+                print("⚠️ Preserving existing image data for meal update")
+            }
+            
+            // Update meal in local array for immediate UI update
+            meals[index] = mealToSave
+            
+            // Save to local cache
+            saveToLocalCache()
+            
+            // Then update in CloudKit
+            cloudKitManager.saveRecord(mealToSave) { [weak self] result in
+                guard let self = self else { return }
+                
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(var updatedMeal):
+                        print("✅ Successfully saved meal to CloudKit")
                         
-                        // Also update local cache
-                        self.saveToLocalCache()
+                        // Preserve the image data if CloudKit doesn't return it
+                        if updatedMeal.imageData == nil && mealToSave.imageData != nil {
+                            updatedMeal.imageData = mealToSave.imageData
+                        }
+                        
+                        // Always ensure isManuallyAdjusted is false
+                        updatedMeal.isManuallyAdjusted = false
+                        
+                        // Check if the meal still exists in our array before updating
+                        if let index = self.meals.firstIndex(where: { $0.id == updatedMeal.id }) {
+                            self.meals[index] = updatedMeal
+                            
+                            // Also update local cache
+                            self.saveToLocalCache()
+                        }
+                        
+                    case .failure(let error):
+                        self.errorMessage = "Error saving meal: \(error.localizedDescription)"
+                        print("❌ Error saving meal: \(error.localizedDescription)")
                     }
+                }
+            }
+        } else {
+            // This is potentially a new meal - check for duplicates by content
+            let timeThreshold = 120.0 // 2 minutes
+            let potentialDuplicate = meals.first { existingMeal in
+                // Check if meals are very close in time and have similar content
+                let timeInterval = abs(existingMeal.timestamp.timeIntervalSince(mealToSave.timestamp))
+                
+                if timeInterval > timeThreshold {
+                    return false // Not a duplicate if timestamps are far apart
+                }
+                
+                // If foods are empty, check only time
+                if existingMeal.foods.isEmpty || mealToSave.foods.isEmpty {
+                    return timeInterval < 10 // Consider duplicate if within 10 seconds and empty
+                }
+                
+                // For non-empty meals, check food similarity
+                let existingFoods = Set(existingMeal.foods.map { $0.name.lowercased() })
+                let newFoods = Set(mealToSave.foods.map { $0.name.lowercased() })
+                
+                if existingFoods.isEmpty || newFoods.isEmpty {
+                    return false
+                }
+                
+                // Calculate similarity ratio
+                let commonItems = existingFoods.intersection(newFoods)
+                let similarity = Double(commonItems.count) / Double(max(existingFoods.count, newFoods.count))
+                
+                // Consider duplicate if 50% or more foods match and timestamps are close
+                return similarity >= 0.5
+            }
+            
+            if let duplicate = potentialDuplicate {
+                print("⚠️ Potential duplicate meal detected with ID \(duplicate.id) - updating instead of creating new")
+                
+                // Update the existing meal instead of creating a new one
+                var updatedDuplicate = duplicate
+                updatedDuplicate.foods = mealToSave.foods
+                updatedDuplicate.nutritionScore = mealToSave.nutritionScore
+                updatedDuplicate.macronutrients = mealToSave.macronutrients
+                updatedDuplicate.micronutrients = mealToSave.micronutrients
+                updatedDuplicate.isManuallyAdjusted = false
+                
+                // Preserve image data from both meals
+                if updatedDuplicate.imageData == nil && mealToSave.imageData != nil {
+                    updatedDuplicate.imageData = mealToSave.imageData
+                }
+                
+                // Use the duplicate's ID to prevent creating a new entry
+                if let index = meals.firstIndex(where: { $0.id == duplicate.id }) {
+                    // Replace in the array
+                    meals[index] = updatedDuplicate
                     
-                case .failure(let error):
-                    self.errorMessage = "Error saving meal: \(error.localizedDescription)"
-                    print("❌ Error saving meal: \(error.localizedDescription)")
+                    // Save to local cache
+                    saveToLocalCache()
+                    
+                    // Save to CloudKit with the existing ID
+                    cloudKitManager.saveRecord(updatedDuplicate) { [weak self] result in
+                        // Handle the result similar to the update case
+                        guard let self = self else { return }
+                        
+                        DispatchQueue.main.async {
+                            switch result {
+                            case .success(var savedMeal):
+                                print("✅ Successfully saved updated duplicate meal to CloudKit")
+                                
+                                // Preserve image data
+                                if savedMeal.imageData == nil && updatedDuplicate.imageData != nil {
+                                    savedMeal.imageData = updatedDuplicate.imageData
+                                }
+                                
+                                savedMeal.isManuallyAdjusted = false
+                                
+                                // Update in local array if it still exists
+                                if let idx = self.meals.firstIndex(where: { $0.id == savedMeal.id }) {
+                                    self.meals[idx] = savedMeal
+                                    self.saveToLocalCache()
+                                }
+                                
+                            case .failure(let error):
+                                self.errorMessage = "Error saving meal: \(error.localizedDescription)"
+                                print("❌ Error saving duplicate meal: \(error.localizedDescription)")
+                            }
+                        }
+                    }
+                }
+                return
+            }
+            
+            // This is a genuine new meal with no duplicates
+            print("✅ No duplicates found, saving as new meal with ID \(mealToSave.id)")
+            
+            // Add to local array for immediate UI update
+            meals.append(mealToSave)
+            
+            // Sort by timestamp (newest first)
+            meals.sort { $0.timestamp > $1.timestamp }
+            
+            // Save to local cache
+            saveToLocalCache()
+            
+            // Then add to CloudKit - keeping track of the original ID
+            let originalId = mealToSave.id
+            cloudKitManager.saveRecord(mealToSave) { [weak self] result in
+                guard let self = self else { return }
+                
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(var savedMeal):
+                        print("✅ Successfully saved new meal to CloudKit")
+                        
+                        // Preserve the image data if CloudKit doesn't return it
+                        if savedMeal.imageData == nil && mealToSave.imageData != nil {
+                            savedMeal.imageData = mealToSave.imageData
+                        }
+                        
+                        // Always ensure isManuallyAdjusted is false
+                        savedMeal.isManuallyAdjusted = false
+                        
+                        // IMPORTANT: Find the meal we just added by its original ID
+                        if let index = self.meals.firstIndex(where: { $0.id == originalId }) {
+                            // Replace it with the saved version from CloudKit
+                            self.meals[index] = savedMeal
+                            
+                            // Also update local cache
+                            self.saveToLocalCache()
+                        } else {
+                            // If we can't find the original meal (unlikely), check if the CloudKit version exists
+                            let exists = self.meals.contains(where: { $0.id == savedMeal.id })
+                            
+                            // Only add if it doesn't already exist to prevent duplicates
+                            if !exists {
+                                self.meals.append(savedMeal)
+                                self.meals.sort { $0.timestamp > $1.timestamp }
+                                self.saveToLocalCache()
+                            }
+                        }
+                        
+                    case .failure(let error):
+                        self.errorMessage = "Error saving meal: \(error.localizedDescription)"
+                        print("❌ Error saving meal: \(error.localizedDescription)")
+                    }
                 }
             }
         }
@@ -186,25 +439,46 @@ public class NutritionViewModel2: ObservableObject {
     public func updateMeal(_ meal: MealEntry) {
         print("🔄 Updating meal in CloudKit...")
         
+        // Create a copy of the meal to ensure we don't modify the original
+        var updatedMeal = meal
+        
+        // Always set isManuallyAdjusted to false (feature removed)
+        updatedMeal.isManuallyAdjusted = false
+        
         // First update local array for immediate UI update
         if let index = meals.firstIndex(where: { $0.id == meal.id }) {
-            meals[index] = meal
+            // If the existing meal has image data and the new one doesn't, preserve it
+            let existingMeal = meals[index]
+            if updatedMeal.imageData == nil && existingMeal.imageData != nil {
+                updatedMeal.imageData = existingMeal.imageData
+                print("⚠️ Preserving existing image data for meal update")
+            }
+            
+            meals[index] = updatedMeal
             // Save to local cache
             saveToLocalCache()
         }
         
         // Then update in CloudKit
-        cloudKitManager.saveRecord(meal) { [weak self] result in
+        cloudKitManager.saveRecord(updatedMeal) { [weak self] result in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
                 switch result {
-                case .success(let updatedMeal):
+                case .success(var cloudkitMeal):
                     print("✅ Successfully updated meal in CloudKit")
                     
+                    // Preserve the image data if CloudKit doesn't return it
+                    if cloudkitMeal.imageData == nil && updatedMeal.imageData != nil {
+                        cloudkitMeal.imageData = updatedMeal.imageData
+                    }
+                    
+                    // Always set isManuallyAdjusted to false
+                    cloudkitMeal.isManuallyAdjusted = false
+                    
                     // Update with the latest version from CloudKit
-                    if let index = self.meals.firstIndex(where: { $0.id == updatedMeal.id }) {
-                        self.meals[index] = updatedMeal
+                    if let index = self.meals.firstIndex(where: { $0.id == cloudkitMeal.id }) {
+                        self.meals[index] = cloudkitMeal
                         // Update local cache
                         self.saveToLocalCache()
                     }
@@ -221,39 +495,43 @@ public class NutritionViewModel2: ObservableObject {
     public func deleteMeal(_ meal: MealEntry) {
         print("🗑️ Deleting meal from CloudKit...")
         
-        // Add haptic feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        // Add haptic feedback for better user experience
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
         
         // Remove from local array first for immediate UI update
-        withAnimation {
-            meals.removeAll { $0.id == meal.id }
-        }
+        meals.removeAll { $0.id == meal.id }
         
         // Update local cache
         saveToLocalCache()
         
-        // Then delete from CloudKit
-        cloudKitManager.deleteRecord(meal) { [weak self] result in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    print("✅ Successfully deleted meal from CloudKit")
-                    
-                case .failure(let error):
-                    self.errorMessage = "Error deleting meal: \(error.localizedDescription)"
-                    print("❌ Error deleting meal: \(error.localizedDescription)")
-                    
-                    // Add the meal back to the array if CloudKit deletion failed
-                    self.meals.append(meal)
-                    self.meals.sort { $0.timestamp > $1.timestamp }
-                    
-                    // Update local cache
-                    self.saveToLocalCache()
+        // Only attempt to delete from CloudKit if the meal has a recordID
+        if let recordID = meal.recordID {
+            // Then delete from CloudKit
+            cloudKitManager.deleteRecord(meal) { [weak self] result in
+                guard let self = self else { return }
+                
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success:
+                        print("✅ Successfully deleted meal from CloudKit")
+                        
+                    case .failure(let error):
+                        self.errorMessage = "Error deleting meal: \(error.localizedDescription)"
+                        print("❌ Error deleting meal: \(error.localizedDescription)")
+                        
+                        // Add the meal back to the array if CloudKit deletion failed
+                        self.meals.append(meal)
+                        self.meals.sort { $0.timestamp > $1.timestamp }
+                        
+                        // Update local cache
+                        self.saveToLocalCache()
+                    }
                 }
             }
+        } else {
+            // Meal doesn't have a recordID, so it was never saved to CloudKit
+            print("ℹ️ Meal deleted locally only (no CloudKit record)")
         }
     }
     
@@ -264,10 +542,30 @@ public class NutritionViewModel2: ObservableObject {
         print("💾 Saving to local cache...")
         
         do {
+            // Create a lightweight version of meals without image data
+            var cachedMeals = [CachedMealEntry]()
+            
             // Limit to last 30 meals to avoid excessive storage
             let limitedMeals = Array(meals.prefix(30))
-            let data = try JSONEncoder().encode(limitedMeals)
+            
+            for meal in limitedMeals {
+                var cachedMeal = CachedMealEntry(from: meal)
+                
+                // If the meal has image data, save it to the file system
+                if let imageData = meal.imageData {
+                    // Save image to file system and store the filename
+                    if let filename = saveImageToFileSystem(data: imageData, mealId: meal.id) {
+                        cachedMeal.imageFilename = filename
+                    }
+                }
+                
+                cachedMeals.append(cachedMeal)
+            }
+            
+            // Encode the lightweight meal objects
+            let data = try JSONEncoder().encode(cachedMeals)
             UserDefaults.standard.set(data, forKey: "cachedMeals")
+            print("💾 Saved \(cachedMeals.count) meals to local cache")
         } catch {
             print("❌ Error saving to local cache: \(error.localizedDescription)")
         }
@@ -279,11 +577,45 @@ public class NutritionViewModel2: ObservableObject {
         
         if let data = UserDefaults.standard.data(forKey: "cachedMeals") {
             do {
-                let cachedMeals = try JSONDecoder().decode([MealEntry].self, from: data)
-                withAnimation {
-                    self.meals = cachedMeals
-                }
+                let decoder = JSONDecoder()
+                let cachedMeals = try decoder.decode([CachedMealEntry].self, from: data)
+                
                 print("✅ Loaded \(cachedMeals.count) meals from local cache")
+                
+                // Create a dictionary of existing meals by ID for quick lookup
+                let existingMealsById = Dictionary(uniqueKeysWithValues: 
+                    self.meals.map { ($0.id, $0) })
+                
+                // Convert cached meals back to full meal entries with images
+                var fullMeals = [MealEntry]()
+                
+                for cachedMeal in cachedMeals {
+                    var mealEntry = cachedMeal.toMealEntry()
+                    
+                    // Try to load the image from file system if there's a filename
+                    if let filename = cachedMeal.imageFilename, 
+                       let imageData = loadImageFromFileSystem(filename: filename) {
+                        mealEntry.imageData = imageData
+                        print("📸 Loaded image for meal \(mealEntry.id) from file system")
+                    } 
+                    // If no filename or loading failed, try using existing image if available
+                    else if let existingMeal = existingMealsById[mealEntry.id],
+                            let existingImageData = existingMeal.imageData {
+                        mealEntry.imageData = existingImageData
+                    }
+                    
+                    // Always ensure isManuallyAdjusted is false (feature removed)
+                    mealEntry.isManuallyAdjusted = false
+                    
+                    fullMeals.append(mealEntry)
+                }
+                
+                // Deduplicate meals before updating UI
+                let uniqueMeals = deduplicateMeals(fullMeals)
+                
+                withAnimation {
+                    self.meals = uniqueMeals
+                }
             } catch {
                 print("❌ Error loading from local cache: \(error.localizedDescription)")
             }
@@ -299,6 +631,11 @@ public class NutritionViewModel2: ObservableObject {
             .sink { [weak self] _ in
                 print("📱 App became active, refreshing data...")
                 self?.fetchMeals()
+                
+                // Also run a cleanup to remove any duplicates
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                    self?.cleanupDuplicateMeals()
+                }
             }
             .store(in: &cancellables)
         
@@ -312,6 +649,41 @@ public class NutritionViewModel2: ObservableObject {
     }
     
     // MARK: - Helper Methods
+    
+    /// Check if two meals are likely duplicates by comparing content
+    private func areMealsSimilar(_ meal1: MealEntry, _ meal2: MealEntry) -> Bool {
+        // Time-based check: if meals are within 2 minutes of each other
+        let timeInterval = abs(meal1.timestamp.timeIntervalSince(meal2.timestamp))
+        let areTimestampsClose = timeInterval < 120 // Within 2 minutes
+        
+        // If timestamps are not close, they're definitely not duplicates
+        if !areTimestampsClose {
+            return false
+        }
+        
+        // If either meal has no foods, just use the timestamp check
+        if meal1.foods.isEmpty || meal2.foods.isEmpty {
+            return areTimestampsClose
+        }
+        
+        // Check for similarity in foods
+        // For simplicity, we'll check if at least 50% of foods match by name
+        let foods1 = Set(meal1.foods.map { $0.name.lowercased() })
+        let foods2 = Set(meal2.foods.map { $0.name.lowercased() })
+        
+        if foods1.isEmpty || foods2.isEmpty {
+            return areTimestampsClose
+        }
+        
+        // Find common food items
+        let commonItems = foods1.intersection(foods2)
+        
+        // Calculate similarity ratio
+        let similarity = Double(commonItems.count) / Double(max(foods1.count, foods2.count))
+        
+        // Consider it a duplicate if 50% or more foods match
+        return similarity >= 0.5
+    }
     
     /// Generate nutritional insights for the current meal
     public func generateInsights() {
@@ -329,5 +701,188 @@ public class NutritionViewModel2: ObservableObject {
     public func forceRefresh() {
         print("🔄 Forcing refresh of data...")
         fetchMeals()
+        
+        // Run cleanup after fetch completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.cleanupDuplicateMeals()
+        }
+    }
+    
+    /// Deduplicate meals based on similarity and ID
+    private func deduplicateMeals(_ meals: [MealEntry]) -> [MealEntry] {
+        var uniqueMeals = [MealEntry]()
+        var seenIds = Set<UUID>()
+        var seenContentHashes = Set<String>()
+        
+        for meal in meals {
+            // Skip if we've already seen this ID
+            if seenIds.contains(meal.id) {
+                print("🔍 Skipping duplicate meal with ID: \(meal.id)")
+                continue
+            }
+            
+            // Create a content hash using timestamp and food names
+            let timeString = String(format: "%.0f", meal.timestamp.timeIntervalSince1970)
+            let foodsString = meal.foods.map { $0.name.lowercased() }.sorted().joined(separator: "-")
+            let contentHash = "\(timeString)-\(foodsString)"
+            
+            // Skip if we've seen a meal with very similar content
+            if seenContentHashes.contains(contentHash) {
+                print("🔍 Skipping meal with duplicate content: \(contentHash)")
+                continue
+            }
+            
+            // Always ensure isManuallyAdjusted is false
+            var cleanMeal = meal
+            cleanMeal.isManuallyAdjusted = false
+            
+            // Add to our results
+            uniqueMeals.append(cleanMeal)
+            seenIds.insert(meal.id)
+            seenContentHashes.insert(contentHash)
+        }
+        
+        print("🧹 Deduplicated \(meals.count) meals into \(uniqueMeals.count) unique meals")
+        return uniqueMeals
+    }
+    
+    // MARK: - Duplicates and Data Cleanup
+    
+    /// Perform a thorough cleanup of any duplicate meals
+    private func cleanupDuplicateMeals() {
+        // Get the current count
+        let originalCount = meals.count
+        
+        // First deduplicate by ID to ensure no duplicated UUIDs
+        var seenIds = Set<UUID>()
+        var uniqueMeals = [MealEntry]()
+        
+        for meal in meals {
+            if !seenIds.contains(meal.id) {
+                // Create a clean copy of the meal
+                var cleanMeal = meal
+                cleanMeal.isManuallyAdjusted = false
+                uniqueMeals.append(cleanMeal)
+                seenIds.insert(meal.id)
+            }
+        }
+        
+        // Then group by similar timestamp and content to find near-duplicates
+        var groups = [String: [MealEntry]]()
+        
+        for meal in uniqueMeals {
+            // Create a fuzzy timestamp bucket (rounded to nearest minute)
+            let timeRoundedToMinute = Int(meal.timestamp.timeIntervalSince1970 / 60) * 60
+            let foodsHash = meal.foods.map { $0.name.lowercased() }.sorted().joined(separator: "-")
+            
+            // Create bucket key using the rounded time and foods
+            let bucketKey = "\(timeRoundedToMinute)-\(foodsHash)"
+            
+            if groups[bucketKey] == nil {
+                groups[bucketKey] = [meal]
+            } else {
+                groups[bucketKey]!.append(meal)
+            }
+        }
+        
+        // For each group of similar meals, keep only the one with the most data
+        var finalMeals = [MealEntry]()
+        
+        for (_, similarMeals) in groups {
+            if similarMeals.count > 1 {
+                print("🧹 Found \(similarMeals.count) similar meals - keeping best one")
+                
+                // Sort by which has the most data (image, foods, etc)
+                let bestMeal = similarMeals.max { a, b in
+                    let aScore = (a.imageData != nil ? 10 : 0) + a.foods.count
+                    let bScore = (b.imageData != nil ? 10 : 0) + b.foods.count
+                    return aScore < bScore
+                }
+                
+                if let meal = bestMeal {
+                    finalMeals.append(meal)
+                }
+            } else {
+                // Only one meal in this group, just add it
+                finalMeals.append(similarMeals[0])
+            }
+        }
+        
+        // Sort by timestamp (newest first) and update
+        finalMeals.sort { $0.timestamp > $1.timestamp }
+        
+        if finalMeals.count < originalCount {
+            print("🧹 Cleaned up \(originalCount - finalMeals.count) duplicate meals")
+            
+            withAnimation {
+                self.meals = finalMeals
+            }
+            
+            // Save to local cache
+            saveToLocalCache()
+        } else {
+            print("✅ No duplicates found during cleanup")
+        }
+    }
+    
+    // MARK: - Computed Properties
+    
+    /// Returns only meals from today, sorted by timestamp (newest first)
+    public var todayMeals: [MealEntry] {
+        let today = Calendar.current.startOfDay(for: Date())
+        return meals.filter { 
+            Calendar.current.isDate($0.timestamp, inSameDayAs: today)
+        }.sorted(by: { $0.timestamp > $1.timestamp })
+    }
+}
+
+// A lightweight version of MealEntry for caching
+struct CachedMealEntry: Codable {
+    let id: UUID
+    let timestamp: Date
+    var foods: [FoodItem]
+    var userNotes: String?
+    var nutritionScore: Int
+    var macronutrients: MacroData
+    var micronutrients: MicroData
+    var isManuallyAdjusted: Bool
+    var recordIDString: String?
+    var imageFilename: String?  // Store filename instead of actual image data
+    
+    // Create from a MealEntry
+    init(from meal: MealEntry) {
+        self.id = meal.id
+        self.timestamp = meal.timestamp
+        self.foods = meal.foods
+        self.userNotes = meal.userNotes
+        self.nutritionScore = meal.nutritionScore
+        self.macronutrients = meal.macronutrients
+        self.micronutrients = meal.micronutrients
+        self.isManuallyAdjusted = meal.isManuallyAdjusted
+        self.recordIDString = meal.recordID?.recordName
+        self.imageFilename = nil // Will be set if image is saved to file system
+    }
+    
+    // Convert back to MealEntry
+    func toMealEntry() -> MealEntry {
+        var mealEntry = MealEntry(
+            id: id, 
+            timestamp: timestamp,
+            imageData: nil,  // Will be loaded separately
+            imageURL: nil,
+            foods: foods,
+            nutritionScore: nutritionScore,
+            macronutrients: macronutrients,
+            micronutrients: micronutrients,
+            userNotes: userNotes,
+            isManuallyAdjusted: isManuallyAdjusted
+        )
+        
+        // Set recordID if available
+        if let recordIDString = recordIDString {
+            mealEntry.recordID = CKRecord.ID(recordName: recordIDString)
+        }
+        
+        return mealEntry
     }
 }
