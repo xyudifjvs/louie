@@ -153,6 +153,8 @@ struct NutritionAnimatedFlowView: View {
                 VStack {
                     // Use our stub CameraPreviewHeaderView for the header
                     CameraPreviewHeaderView(closeAction: {
+                        // Clean up the draft meal session when closing
+                        viewModel.cancelMealLoggingSession()
                         showView = false
                     })
                     
@@ -227,6 +229,12 @@ struct NutritionAnimatedFlowView: View {
                     // Dismiss the view after a short delay to allow animation to complete
                     showView = false
                 }
+            }
+        }
+        .onDisappear {
+            // Ensure we clean up if view disappears unexpectedly
+            if viewModel.getCurrentDraftMeal() != nil {
+                viewModel.cancelMealLoggingSession()
             }
         }
     }

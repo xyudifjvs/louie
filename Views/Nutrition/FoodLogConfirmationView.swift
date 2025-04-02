@@ -173,12 +173,8 @@ struct FoodLogConfirmationView: View {
     private func saveMeal() {
         isSaving = true
         
-        // Create a copy of the meal entry with the user notes
-        var updatedMeal = mealEntry
-        updatedMeal.userNotes = userNotes.isEmpty ? nil : userNotes
-        
-        // Save to CloudKit via the view model
-        viewModel.saveMeal(updatedMeal)
+        // Finalize the draft meal with user notes
+        viewModel.finalizeDraftMeal(with: userNotes.isEmpty ? nil : userNotes)
         
         // Wait a moment for visual feedback
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {

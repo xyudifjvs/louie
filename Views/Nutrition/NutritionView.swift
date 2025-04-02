@@ -6,6 +6,7 @@
 
 import SwiftUI
 import Foundation
+import AVFoundation
 
 // MARK: - Nutrition Module
 struct NutritionView: View {
@@ -53,23 +54,24 @@ struct NutritionView: View {
                                 Spacer()
                                 
                                 Button(action: {
-                                    // Barcode scanner button action (to be implemented later)
+                                    checkCameraPermissions()
                                 }) {
-                                    Image(systemName: "barcode.viewfinder")
+                                    Image(systemName: "camera")
                                         .font(.title2)
                                         .foregroundColor(.white)
                                 }
                                 
                                 Button(action: {
-                                    showCameraView = true
+                                    // Barcode button action (to be implemented later)
                                 }) {
-                                    Image(systemName: "camera.fill")
+                                    Image(systemName: "barcode.viewfinder")
                                         .font(.title2)
                                         .foregroundColor(.white)
                                 }
                             }
                         }
                         .padding(.horizontal)
+                        .padding(.vertical, 8)
                         
                         // Today's Meals Container
                         VStack(spacing: 16) {
@@ -160,12 +162,17 @@ struct NutritionView: View {
             CameraView(viewModel: viewModel, showCameraView: $showCameraView)
         })
         .fullScreenCover(isPresented: $showNutritionFlow, content: {
-            NutritionAnimatedFlowView(
-                viewModel: viewModel,
-                showView: $showNutritionFlow,
-                foodImage: processedImage ?? UIImage(),
-                detectedLabels: detectedLabels
-            )
+            if let image = processedImage {
+                // Start a new meal logging session with the captured image
+                let _ = viewModel.startMealLoggingSession(with: image)
+                
+                NutritionAnimatedFlowView(
+                    viewModel: viewModel,
+                    showView: $showNutritionFlow,
+                    foodImage: image,
+                    detectedLabels: detectedLabels
+                )
+            }
         })
         .alert("Camera Permission Required", isPresented: $showPermissionAlert) {
             Button("Settings") {
@@ -187,6 +194,31 @@ struct NutritionView: View {
         let todayMeals = viewModel.meals.filter { Calendar.current.isDate($0.timestamp, inSameDayAs: today) }
         guard !todayMeals.isEmpty else { return 0 }
         return todayMeals.reduce(0) { $0 + $1.nutritionScore } / todayMeals.count
+    }
+    
+    private func checkCameraPermissions() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            // Camera access already granted, show camera view
+            showCameraView = true
+        case .notDetermined:
+            // Request camera access
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        self.showCameraView = true
+                    } else {
+                        self.showPermissionAlert = true
+                    }
+                }
+            }
+        case .denied, .restricted:
+            // Camera access was denied or restricted
+            showPermissionAlert = true
+        @unknown default:
+            // Handle future cases
+            showPermissionAlert = true
+        }
     }
 }
 

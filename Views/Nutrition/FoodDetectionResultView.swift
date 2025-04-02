@@ -334,19 +334,21 @@ struct FoodDetectionResultView: View {
                 
                 switch result {
                 case .success(let foodItems):
-                    // Use AIFoodAnalysisService to create a meal entry with the food items
-                    let mealEntry = AIFoodAnalysisService.shared.createMealEntry(
-                        from: foodItems,
-                        image: self.foodImage,
-                        isManuallyAdjusted: true
-                    )
+                    // Update the draft meal in the view model with these food items
+                    self.viewModel.updateDraftMeal(foods: foodItems)
                     
-                    // Present the confirmation view
-                    self.showFoodLogConfirmation(mealEntry: mealEntry)
+                    // Get the updated draft meal
+                    if let updatedMeal = self.viewModel.getCurrentDraftMeal() {
+                        // Present the confirmation view
+                        self.showFoodLogConfirmation(mealEntry: updatedMeal)
+                    } else {
+                        self.errorMessage = "Failed to update draft meal"
+                        self.showingError = true
+                    }
                     
                 case .failure(let error):
-                    errorMessage = "Failed to get nutrition data: \(error.description)"
-                    showingError = true
+                    self.errorMessage = "Failed to get nutrition data: \(error.description)"
+                    self.showingError = true
                 }
             }
         }

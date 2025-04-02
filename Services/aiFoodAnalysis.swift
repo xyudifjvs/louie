@@ -95,7 +95,8 @@ class AIFoodAnalysisService {
                             macronutrients: totalMacros,
                             micronutrients: totalMicros,
                             userNotes: nil,
-                            isManuallyAdjusted: false
+                            isManuallyAdjusted: false,
+                            isDraft: true
                         )
                         
                         // Generate recommendations (could be added to userNotes)
@@ -180,7 +181,8 @@ class AIFoodAnalysisService {
             macronutrients: totalMacros,
             micronutrients: totalMicros,
             userNotes: userNotes,
-            isManuallyAdjusted: isManuallyAdjusted
+            isManuallyAdjusted: isManuallyAdjusted,
+            isDraft: true
         )
         
         // Generate recommendations (could be added to userNotes)

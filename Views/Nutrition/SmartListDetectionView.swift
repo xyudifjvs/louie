@@ -540,20 +540,19 @@ struct SmartListDetectionView: View {
     
     // Log the meal and dismiss
     private func logMealAndDismiss() {
-        // Create meal entry with all required data
-        let mealEntry = MealEntry(
-            timestamp: Date(),
-            imageData: foodImage.jpegData(compressionQuality: 0.7),
-            foods: foodItems,
-            nutritionScore: nutritionScore,
-            macronutrients: totalMacros
-        )
+        // Update the draft meal with the currently selected food items
+        viewModel.updateDraftMeal(foods: foodItems)
         
-        // Save the meal using the viewModel's CloudKit saving functionality
-        viewModel.saveMeal(mealEntry)
-        
-        // Signal to parent view that we're done by setting showFoods to false
-        showFoods = false
+        // Get the updated draft meal for confirmation
+        if let draftMeal = viewModel.getCurrentDraftMeal() {
+            // Finalize and save the meal
+            viewModel.finalizeDraftMeal()
+            
+            // Signal to parent view that we're done by setting showFoods to false
+            showFoods = false
+        } else {
+            print("⚠️ No draft meal found to log")
+        }
     }
 }
 

@@ -25,6 +25,10 @@ public class NutritionViewModel2: ObservableObject {
     @Published var cloudSyncStatus: SyncStatus = .idle
     @Published var nutritionGoals = NutritionGoals.loadFromUserDefaults()
     
+    // MARK: - Session Management
+    private var currentMealSessionID: UUID?
+    private var draftMeal: MealEntry?
+    
     private let cloudKitManager = CloudKitSyncManager.shared
     private let nutritionService = NutritionService.shared
     private var cancellables = Set<AnyCancellable>()
@@ -239,6 +243,12 @@ public class NutritionViewModel2: ObservableObject {
     /// Save a new meal or update an existing one
     public func saveMeal(_ meal: MealEntry) {
         print("💾 Saving meal to CloudKit...")
+        
+        // Don't save draft meals to CloudKit
+        if meal.isDraft {
+            print("⚠️ Not saving draft meal to CloudKit")
+            return
+        }
         
         // Make a copy of the meal to preserve image data
         var mealToSave = meal
@@ -519,39 +529,35 @@ public class NutritionViewModel2: ObservableObject {
     
     // MARK: - Helper Methods
     
-    /// Check if two meals are likely duplicates by comparing content
-    private func areMealsSimilar(_ meal1: MealEntry, _ meal2: MealEntry) -> Bool {
-        // Time-based check: if meals are within 2 minutes of each other
+    /// Check if two meals are similar based on content and timestamp
+    private func areMealsSimilar(meal1: MealEntry, meal2: MealEntry) -> Bool {
+        // If IDs are the same, they're the same meal
+        if meal1.id == meal2.id {
+            return true
+        }
+        
+        // Check if timestamps are within 2 minutes of each other
         let timeInterval = abs(meal1.timestamp.timeIntervalSince(meal2.timestamp))
-        let areTimestampsClose = timeInterval < 120 // Within 2 minutes
+        let similarTime = timeInterval < 120 // within 2 minutes
         
-        // If timestamps are not close, they're definitely not duplicates
-        if !areTimestampsClose {
-            return false
+        // Check if food items are similar
+        let foods1Set = Set(meal1.foods.map { $0.name.lowercased() })
+        let foods2Set = Set(meal2.foods.map { $0.name.lowercased() })
+        
+        // Calculate Jaccard similarity (intersection over union)
+        let intersection = foods1Set.intersection(foods2Set).count
+        let union = foods1Set.union(foods2Set).count
+        
+        // If no food items, rely solely on timestamp
+        if union == 0 {
+            return similarTime
         }
         
-        // If either meal has no foods, just use the timestamp check
-        if meal1.foods.isEmpty || meal2.foods.isEmpty {
-            return areTimestampsClose
-        }
+        let similarity = Double(intersection) / Double(union)
+        let similarFoods = similarity > 0.7 // 70% similarity
         
-        // Check for similarity in foods
-        // For simplicity, we'll check if at least 50% of foods match by name
-        let foods1 = Set(meal1.foods.map { $0.name.lowercased() })
-        let foods2 = Set(meal2.foods.map { $0.name.lowercased() })
-        
-        if foods1.isEmpty || foods2.isEmpty {
-            return areTimestampsClose
-        }
-        
-        // Find common food items
-        let commonItems = foods1.intersection(foods2)
-        
-        // Calculate similarity ratio
-        let similarity = Double(commonItems.count) / Double(max(foods1.count, foods2.count))
-        
-        // Consider it a duplicate if 50% or more foods match
-        return similarity >= 0.5
+        // Meals are similar if they have similar time and similar foods
+        return similarTime && similarFoods
     }
     
     /// Generate nutritional insights for the current meal
@@ -577,41 +583,29 @@ public class NutritionViewModel2: ObservableObject {
         }
     }
     
-    /// Deduplicate meals based on similarity and ID
-    private func deduplicateMeals(_ meals: [MealEntry]) -> [MealEntry] {
-        var uniqueMeals = [MealEntry]()
-        var seenIds = Set<UUID>()
-        var seenContentHashes = Set<String>()
+    /// Deduplicate meals array by checking for similar meals
+    private func deduplicateMeals(_ mealsToCheck: [MealEntry]) -> [MealEntry] {
+        print("🧹 Deduplicated \(mealsToCheck.count) meals into \(mealsToCheck.count) unique meals")
         
-        for meal in meals {
-            // Skip if we've already seen this ID
-            if seenIds.contains(meal.id) {
-                print("🔍 Skipping duplicate meal with ID: \(meal.id)")
-                continue
+        // First, filter out any draft meals
+        let nonDraftMeals = mealsToCheck.filter { !$0.isDraft }
+        
+        // Then perform normal deduplication
+        var uniqueMeals: [MealEntry] = []
+        
+        for meal in nonDraftMeals {
+            // Check if this meal is already in our unique list
+            let isDuplicate = uniqueMeals.contains { existingMeal in
+                areMealsSimilar(meal1: meal, meal2: existingMeal)
             }
             
-            // Create a content hash using timestamp and food names
-            let timeString = String(format: "%.0f", meal.timestamp.timeIntervalSince1970)
-            let foodsString = meal.foods.map { $0.name.lowercased() }.sorted().joined(separator: "-")
-            let contentHash = "\(timeString)-\(foodsString)"
-            
-            // Skip if we've seen a meal with very similar content
-            if seenContentHashes.contains(contentHash) {
-                print("🔍 Skipping meal with duplicate content: \(contentHash)")
-                continue
+            if !isDuplicate {
+                uniqueMeals.append(meal)
             }
-            
-            // Always ensure isManuallyAdjusted is false
-            var cleanMeal = meal
-            cleanMeal.isManuallyAdjusted = false
-            
-            // Add to our results
-            uniqueMeals.append(cleanMeal)
-            seenIds.insert(meal.id)
-            seenContentHashes.insert(contentHash)
         }
         
-        print("🧹 Deduplicated \(meals.count) meals into \(uniqueMeals.count) unique meals")
+        print("🧹 After filtering drafts and deduplication: \(uniqueMeals.count) unique meals")
+        
         return uniqueMeals
     }
     
@@ -813,6 +807,91 @@ public class NutritionViewModel2: ObservableObject {
     /// Check if iCloud is available for CloudKit operations
     private var iCloudAvailable: Bool {
         return cloudKitManager.iCloudAvailable
+    }
+    
+    /// Start a new meal logging session
+    public func startMealLoggingSession(with image: UIImage) -> UUID {
+        // Create a session ID
+        let sessionID = UUID()
+        currentMealSessionID = sessionID
+        
+        // Create a draft meal
+        let imageData = image.jpegData(compressionQuality: 0.7)
+        draftMeal = MealEntry(
+            id: sessionID,
+            timestamp: Date(),
+            imageData: imageData,
+            foods: [],
+            nutritionScore: 0,
+            macronutrients: MacroData(),
+            micronutrients: MicroData(),
+            isDraft: true
+        )
+        
+        print("🆕 Started new meal logging session with ID: \(sessionID)")
+        return sessionID
+    }
+    
+    /// Get the current draft meal for the active session
+    public func getCurrentDraftMeal() -> MealEntry? {
+        return draftMeal
+    }
+    
+    /// Update the current draft meal with new food items
+    public func updateDraftMeal(foods: [FoodItem]) {
+        guard let meal = draftMeal else {
+            print("⚠️ No draft meal found to update")
+            return
+        }
+        
+        // Calculate nutrition score
+        let nutritionScore = calculateNutritionScore(foods: foods)
+        
+        // Calculate total macros
+        let totalMacros = foods.reduce(MacroData(protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0)) { result, food in
+            return MacroData(
+                protein: result.protein + food.macros.protein,
+                carbs: result.carbs + food.macros.carbs,
+                fat: result.fat + food.macros.fat,
+                fiber: result.fiber + food.macros.fiber,
+                sugar: result.sugar + food.macros.sugar
+            )
+        }
+        
+        // Create a new meal with updated properties but same session ID
+        draftMeal?.foods = foods
+        draftMeal?.nutritionScore = nutritionScore
+        draftMeal?.macronutrients = totalMacros
+        
+        print("🔄 Updated draft meal for session \(String(describing: currentMealSessionID))")
+    }
+    
+    /// Finalize the current draft meal with user notes and save it
+    public func finalizeDraftMeal(with userNotes: String? = nil) {
+        guard var meal = draftMeal else {
+            print("⚠️ No draft meal found to finalize")
+            return
+        }
+        
+        // Update user notes and mark as not a draft anymore
+        meal.userNotes = userNotes
+        meal.isDraft = false
+        
+        // Save the meal
+        saveMeal(meal)
+        
+        // Clear the session
+        draftMeal = nil
+        currentMealSessionID = nil
+        
+        print("✅ Finalized meal and cleared session")
+    }
+    
+    /// Cancel the current meal logging session
+    public func cancelMealLoggingSession() {
+        draftMeal = nil
+        currentMealSessionID = nil
+        print("❌ Canceled meal logging session")
     }
 }
 
