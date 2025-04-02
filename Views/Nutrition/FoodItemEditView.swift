@@ -11,14 +11,17 @@ struct FoodItemEditView: View {
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var viewModel = NutritionViewModel2()
     @State private var foodItems: [FoodItem]
+    @State private var showAddFoodPopup = false
     let meal: MealEntry?
     let image: UIImage
+    var onSave: (([FoodItem]) -> Void)?
     
-    init(viewModel: NutritionViewModel2, foodItems: [FoodItem], meal: MealEntry? = nil, image: UIImage) {
+    init(viewModel: NutritionViewModel2, foodItems: [FoodItem], meal: MealEntry? = nil, image: UIImage, onSave: (([FoodItem]) -> Void)? = nil) {
         self.viewModel = viewModel
         self._foodItems = State(initialValue: foodItems)
         self.meal = meal
         self.image = image
+        self.onSave = onSave
     }
     
     var body: some View {
@@ -42,7 +45,7 @@ struct FoodItemEditView: View {
                     
                     Spacer()
                     
-                    Text("Edit Foods")
+                    Text("Edit Items")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
@@ -50,10 +53,10 @@ struct FoodItemEditView: View {
                     Spacer()
                     
                     Button(action: {
-                        saveMeal()
+                        showAddFoodPopup = true
                     }) {
-                        Text("Save")
-                            .font(.headline)
+                        Image(systemName: "plus")
+                            .font(.title2)
                             .foregroundColor(.white)
                     }
                 }
@@ -63,82 +66,109 @@ struct FoodItemEditView: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 100, height: 100)
+                    .frame(width: 200, height: 200)
                     .cornerRadius(10)
                     .padding(.vertical)
                 
-                // Food items list
-                List {
-                    ForEach(0..<foodItems.count, id: \.self) { index in
-                        VStack(alignment: .leading) {
-                            HStack {
-                                TextField("Food name", text: $foodItems[index].name)
-                                    .foregroundColor(.primary)
+                // Content area
+                ScrollView {
+                    VStack(spacing: 12) {
+                        // Food items list with swipeable cards
+                        if foodItems.isEmpty {
+                            // Empty state
+                            VStack(spacing: 20) {
+                                Image(systemName: "fork.knife")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.white.opacity(0.5))
                                 
-                                Spacer()
+                                Text("No food items detected")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
                                 
-                                Button(action: {
-                                    // Update calorie value
-                                    let newCalories = Int.random(in: 50...500)
-                                    foodItems[index].calories = newCalories
-                                }) {
-                                    HStack {
-                                        Text("\(foodItems[index].calories) cal")
-                                        Image(systemName: "arrow.2.circlepath")
-                                    }
-                                }
-                                .foregroundColor(.primary)
+                                Text("Tap + to add food items")
+                                    .font(.subheadline)
+                                    .foregroundColor(.white.opacity(0.7))
                             }
-                            
-                            // Serving size
-                            TextField("Serving size", text: $foodItems[index].amount)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 50)
+                        } else {
+                            ForEach(foodItems.indices, id: \.self) { index in
+                                FoodItemCard(
+                                    id: foodItems[index].id,
+                                    item: foodItems[index],
+                                    onDelete: {
+                                        foodItems.remove(at: index)
+                                    },
+                                    onUpdate: { newSize, servingMultiplier in
+                                        // Update the serving size text
+                                        foodItems[index].amount = newSize
+                                        
+                                        // Calculate the current multiplier from the existing serving text
+                                        let currentMultiplier: Int
+                                        if foodItems[index].amount.contains("2") {
+                                            currentMultiplier = 2
+                                        } else if foodItems[index].amount.contains("3") {
+                                            currentMultiplier = 3
+                                        } else {
+                                            currentMultiplier = 1
+                                        }
+                                        
+                                        // Only update nutrition values if the multiplier changed
+                                        if currentMultiplier != servingMultiplier {
+                                            // Calculate base values for a single serving
+                                            let baseCalories = foodItems[index].calories / currentMultiplier
+                                            let baseProtein = foodItems[index].macros.protein / Double(currentMultiplier)
+                                            let baseCarbs = foodItems[index].macros.carbs / Double(currentMultiplier)
+                                            let baseFat = foodItems[index].macros.fat / Double(currentMultiplier)
+                                            
+                                            // Now update with the new multiplier
+                                            foodItems[index].calories = baseCalories * servingMultiplier
+                                            foodItems[index].macros.protein = baseProtein * Double(servingMultiplier)
+                                            foodItems[index].macros.carbs = baseCarbs * Double(servingMultiplier)
+                                            foodItems[index].macros.fat = baseFat * Double(servingMultiplier)
+                                            foodItems[index].servingAmount = 100.0 * Double(servingMultiplier)
+                                        }
+                                    }
+                                )
+                            }
+                            .padding(.horizontal)
                         }
-                        .padding(.vertical, 4)
                     }
-                    .onDelete(perform: deleteItem)
-                    
-                    Button(action: {
-                        addFoodItem()
-                    }) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                            Text("Add Food Item")
-                        }
-                    }
+                    .padding(.vertical)
                 }
-                .listStyle(InsetGroupedListStyle())
+                
+                // Confirm button
+                Button(action: {
+                    // Save changes and return to previous screen
+                    saveMeal()
+                }) {
+                    Text("Confirm")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color(hexCode: "2a6041"), Color(hexCode: "1a1a2e")]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 20)
             }
+        }
+        .sheet(isPresented: $showAddFoodPopup) {
+            AddFoodItemView(foodItems: $foodItems)
         }
     }
     
-    private func deleteItem(at offsets: IndexSet) {
-        foodItems.remove(atOffsets: offsets)
-    }
-    
-    private func addFoodItem() {
-        // Add a new empty food item
-        let newItem = FoodItem(
-            name: "New Food Item",
-            amount: "1 serving",
-            servingAmount: 100,
-            calories: 100,
-            category: .others,
-            macros: MacroData(
-                protein: 5,
-                carbs: 10,
-                fat: 5,
-                fiber: 1,
-                sugar: 2
-            ),
-            micros: MicroData()
-        )
-        
-        foodItems.append(newItem)
-    }
-    
     private func saveMeal() {
+        // Pass updated food items back to parent view
+        onSave?(foodItems)
+        
         // Calculate nutrition score
         let nutritionScore = viewModel.calculateNutritionScore(foods: foodItems)
         
@@ -185,20 +215,177 @@ struct FoodItemEditView: View {
     }
 }
 
+// MARK: - Food Item Card with Swipe to Delete
+struct FoodItemCard: View {
+    let id: UUID
+    let item: FoodItem
+    let onDelete: () -> Void
+    let onUpdate: (String, Int) -> Void
+    
+    @State private var offset: CGFloat = 0
+    @State private var isSwiping = false
+    @State private var isExpanded = false
+    @State private var selectedServingIndex = 0
+    
+    private let servingOptions = ["1 serving", "2 servings", "3 servings"]
+    
+    init(id: UUID, item: FoodItem, onDelete: @escaping () -> Void, onUpdate: @escaping (String, Int) -> Void) {
+        self.id = id
+        self.item = item
+        self.onDelete = onDelete
+        self.onUpdate = onUpdate
+        
+        // Set initial serving index based on item's current amount
+        let initialIndex = servingOptions.firstIndex(of: item.amount) ?? 0
+        _selectedServingIndex = State(initialValue: initialIndex)
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                // Delete background
+                HStack {
+                    Spacer()
+                    
+                    Button(action: {
+                        withAnimation {
+                            onDelete()
+                        }
+                    }) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.white)
+                            .frame(width: 60, height: 40)
+                            .background(Color.red.opacity(0.8))
+                            .cornerRadius(8)
+                            .opacity(0.9)
+                    }
+                }
+                
+                // Food item
+                HStack {
+                    Text(item.name)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Text(item.amount)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .padding(.vertical, 16)
+                .padding(.horizontal, 16)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color(hexCode: "2a6041").opacity(0.95), Color(hexCode: "1a1a2e").opacity(0.95)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .cornerRadius(12)
+                .offset(x: offset)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            if !isExpanded && value.translation.width < 0 {
+                                self.offset = value.translation.width
+                                self.isSwiping = true
+                            }
+                        }
+                        .onEnded { value in
+                            if !isExpanded && value.translation.width < -50 {
+                                // Delete threshold reached
+                                withAnimation {
+                                    self.offset = -60
+                                }
+                            } else {
+                                // Reset position
+                                withAnimation {
+                                    self.offset = 0
+                                    self.isSwiping = false
+                                }
+                            }
+                        }
+                )
+                .onTapGesture {
+                    withAnimation(.spring()) {
+                        isExpanded.toggle()
+                    }
+                }
+            }
+            
+            // Expanded serving size selector
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Serving Size")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.top, 10)
+                    
+                    Picker("Serving Size", selection: $selectedServingIndex) {
+                        ForEach(0..<servingOptions.count, id: \.self) { index in
+                            Text(servingOptions[index]).foregroundColor(.white)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .onChange(of: selectedServingIndex) { newValue in
+                        // Update item's amount when selection changes
+                        updateItemServingSize(to: servingOptions[newValue])
+                    }
+                    .padding(.bottom, 15)
+                }
+                .padding(.horizontal, 16)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color(hexCode: "2a6041").opacity(0.6), Color(hexCode: "1a1a2e").opacity(0.6)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .cornerRadius(12)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+    }
+    
+    private func updateItemServingSize(to newSize: String) {
+        // Calculate serving multiplier (1, 2, or 3)
+        let servingMultiplier = selectedServingIndex + 1
+        
+        // Call the onUpdate callback with both the new size text and multiplier
+        onUpdate(newSize, servingMultiplier)
+    }
+}
+
 // Preview provider
 struct FoodItemEditView_Previews: PreviewProvider {
     static var previews: some View {
-        @State var mockLabels = [
-            LabelAnnotation(description: "Cheeseburger", score: 0.95, topicality: 0.95),
-            LabelAnnotation(description: "French fries", score: 0.90, topicality: 0.90),
-            LabelAnnotation(description: "Soft drink", score: 0.85, topicality: 0.85)
+        // Sample food items for preview
+        let sampleItems: [FoodItem] = [
+            FoodItem(
+                name: "Chicken Breast",
+                amount: "1 serving",
+                servingAmount: 100,
+                calories: 165,
+                category: .proteins,
+                macros: MacroData(protein: 31, carbs: 0, fat: 3.6)
+            ),
+            FoodItem(
+                name: "Brown Rice",
+                amount: "1 serving",
+                servingAmount: 100,
+                calories: 112,
+                category: .carbs,
+                macros: MacroData(protein: 2.6, carbs: 23, fat: 0.9)
+            )
         ]
         
         return FoodItemEditView(
             viewModel: NutritionViewModel2(),
-            foodItems: [],
+            foodItems: sampleItems,
             meal: nil,
-            image: UIImage(systemName: "photo")!
+            image: UIImage(systemName: "photo")!,
+            onSave: { _ in }
         )
         .preferredColorScheme(.dark)
     }

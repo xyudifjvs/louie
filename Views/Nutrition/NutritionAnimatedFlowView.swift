@@ -209,7 +209,16 @@ struct NutritionAnimatedFlowView: View {
             }
         }
         .sheet(isPresented: $showAddFood) {
-            AddFoodItemView(foodItems: $detectedFoods)
+            FoodItemEditView(
+                viewModel: viewModel,
+                foodItems: Array(detectedFoods),
+                meal: nil,
+                image: foodImage,
+                onSave: { updatedFoods in
+                    // Update detectedFoods with the edited food items
+                    detectedFoods = updatedFoods
+                }
+            )
         }
         .onChange(of: showFoods) { newValue in
             if !newValue {
