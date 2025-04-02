@@ -548,3 +548,54 @@ extension MealEntry: CloudKitRecord {
     }
 }
 
+// MARK: - CloudKit Record Extension for NutritionGoals
+extension NutritionGoals: CloudKitRecord {
+    static var recordType: String { return "NutritionGoals" }
+    
+    func toCKRecord() -> CKRecord {
+        let recordID = self.recordID ?? CKRecord.ID(recordName: UUID().uuidString)
+        let record = CKRecord(recordType: NutritionGoals.recordType, recordID: recordID)
+        
+        record["caloriesGoal"] = caloriesGoal as CKRecordValue
+        record["proteinGoal"] = proteinGoal as CKRecordValue
+        record["carbsGoal"] = carbsGoal as CKRecordValue
+        record["fatGoal"] = fatGoal as CKRecordValue
+        record["caloriesProgress"] = caloriesProgress as CKRecordValue
+        record["proteinProgress"] = proteinProgress as CKRecordValue
+        record["carbsProgress"] = carbsProgress as CKRecordValue
+        record["fatProgress"] = fatProgress as CKRecordValue
+        
+        return record
+    }
+    
+    init?(from record: CKRecord) {
+        guard record.recordType == NutritionGoals.recordType else {
+            return nil
+        }
+        
+        self.init(
+            caloriesGoal: record["caloriesGoal"] as? Int ?? 2000,
+            proteinGoal: record["proteinGoal"] as? Double ?? 150,
+            carbsGoal: record["carbsGoal"] as? Double ?? 225,
+            fatGoal: record["fatGoal"] as? Double ?? 70,
+            caloriesProgress: record["caloriesProgress"] as? Int ?? 0,
+            proteinProgress: record["proteinProgress"] as? Double ?? 0,
+            carbsProgress: record["carbsProgress"] as? Double ?? 0,
+            fatProgress: record["fatProgress"] as? Double ?? 0,
+            recordID: record.recordID
+        )
+    }
+    
+    mutating func update(from record: CKRecord) {
+        self.recordID = record.recordID
+        self.caloriesGoal = record["caloriesGoal"] as? Int ?? self.caloriesGoal
+        self.proteinGoal = record["proteinGoal"] as? Double ?? self.proteinGoal
+        self.carbsGoal = record["carbsGoal"] as? Double ?? self.carbsGoal
+        self.fatGoal = record["fatGoal"] as? Double ?? self.fatGoal
+        self.caloriesProgress = record["caloriesProgress"] as? Int ?? self.caloriesProgress
+        self.proteinProgress = record["proteinProgress"] as? Double ?? self.proteinProgress
+        self.carbsProgress = record["carbsProgress"] as? Double ?? self.carbsProgress
+        self.fatProgress = record["fatProgress"] as? Double ?? self.fatProgress
+    }
+}
+

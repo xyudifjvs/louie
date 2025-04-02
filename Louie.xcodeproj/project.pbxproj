@@ -24,6 +24,9 @@
 		B5AE12C52D97C19300204D95 /* FoodItemEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12C42D97C18C00204D95 /* FoodItemEditView.swift */; };
 		B5AE12C72D97C1B800204D95 /* FoodLogConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12C62D97C19C00204D95 /* FoodLogConfirmationView.swift */; };
 		B5C44AE72D9BB5C20052A4B3 /* CloudKitSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C44AE62D9BB5B40052A4B3 /* CloudKitSyncManager.swift */; };
+		B5C44AEB2D9D19CE0052A4B3 /* NutritionGoals.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C44AEA2D9D19C30052A4B3 /* NutritionGoals.swift */; };
+		B5C44AED2D9D19EB0052A4B3 /* GoalsEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C44AEC2D9D19E40052A4B3 /* GoalsEditorView.swift */; };
+		B5C44AEF2D9D1A090052A4B3 /* WeeklyGoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C44AEE2D9D1A040052A4B3 /* WeeklyGoalsView.swift */; };
 		B5E331992D972680009A96F6 /* CompletionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CB52D22D93D1E1009DC977 /* CompletionStatus.swift */; };
 		B5E3319B2D97269B009A96F6 /* HabitTrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57BE6832D9397C300704AA4 /* HabitTrackerViewModel.swift */; };
 		B5E3319C2D9726A2009A96F6 /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55284222D9376D900F215D6 /* Habit.swift */; };
@@ -124,6 +127,9 @@
 		B5AE12C42D97C18C00204D95 /* FoodItemEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodItemEditView.swift; sourceTree = "<group>"; };
 		B5AE12C62D97C19C00204D95 /* FoodLogConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogConfirmationView.swift; sourceTree = "<group>"; };
 		B5C44AE62D9BB5B40052A4B3 /* CloudKitSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncManager.swift; sourceTree = "<group>"; };
+		B5C44AEA2D9D19C30052A4B3 /* NutritionGoals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionGoals.swift; sourceTree = "<group>"; };
+		B5C44AEC2D9D19E40052A4B3 /* GoalsEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsEditorView.swift; sourceTree = "<group>"; };
+		B5C44AEE2D9D1A040052A4B3 /* WeeklyGoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyGoalsView.swift; sourceTree = "<group>"; };
 		B5CB52C42D93C44F009DC977 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
 		B5CB52D22D93D1E1009DC977 /* CompletionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionStatus.swift; sourceTree = "<group>"; };
 		B5CB52D82D9494A6009DC977 /* Louie.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Louie.entitlements; sourceTree = "<group>"; };
@@ -194,6 +200,7 @@
 		B55284252D9376D900F215D6 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				B5C44AEA2D9D19C30052A4B3 /* NutritionGoals.swift */,
 				B592805F2D9A8132009F1BAD /* NutritionTypes.swift */,
 				B592805D2D9A77B6009F1BAD /* NutritionViewModel2.swift */,
 				B5AE12BA2D97B4D500204D95 /* APIResponseModels.swift */,
@@ -288,6 +295,8 @@
 		B55284432D9376D900F215D6 /* Nutrition */ = {
 			isa = PBXGroup;
 			children = (
+				B5C44AEE2D9D1A040052A4B3 /* WeeklyGoalsView.swift */,
+				B5C44AEC2D9D19E40052A4B3 /* GoalsEditorView.swift */,
 				B59280532D9A6A4F009F1BAD /* AddFoodItemView.swift */,
 				B592804F2D9A6862009F1BAD /* SmartListDetectionView.swift */,
 				B592804D2D9A3BF7009F1BAD /* MacroRingView.swift */,
@@ -420,6 +429,7 @@
 				B5E331C42D9727FD009A96F6 /* LouieApp.swift in Sources */,
 				B5E331A22D9726D1009A96F6 /* CloudKitManager.swift in Sources */,
 				B5E331B62D97275C009A96F6 /* WeekdayProgressView.swift in Sources */,
+				B5C44AED2D9D19EB0052A4B3 /* GoalsEditorView.swift in Sources */,
 				B5AE12C32D97C18400204D95 /* FoodDetectionResultView.swift in Sources */,
 				B592805E2D9A77CC009F1BAD /* NutritionViewModel2.swift in Sources */,
 				B5E331AD2D972726009A96F6 /* HabitCalendarView.swift in Sources */,
@@ -434,6 +444,8 @@
 				B5E331B72D972760009A96F6 /* HealthInfoView.swift in Sources */,
 				B5E331B22D972745009A96F6 /* HabitStatsView.swift in Sources */,
 				B5E331AB2D97271C009A96F6 /* CustomDaysSelector.swift in Sources */,
+				B5C44AEF2D9D1A090052A4B3 /* WeeklyGoalsView.swift in Sources */,
+				B5C44AEB2D9D19CE0052A4B3 /* NutritionGoals.swift in Sources */,
 				B5E331BC2D972778009A96F6 /* MainTabView.swift in Sources */,
 				B5E331A72D972707009A96F6 /* GamificationView.swift in Sources */,
 				B5E331A82D97270C009A96F6 /* HabitMoodEntryView.swift in Sources */,

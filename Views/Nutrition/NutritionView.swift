@@ -26,7 +26,7 @@ struct NutritionView: View {
             
             GeometryReader { geometry in
                 VStack(spacing: 0) {
-                    // Top 60% - Today's Meals section
+                    // Top 50% - Today's Meals section
                     VStack(spacing: 16) {
                         // Header with title and action buttons
                         ZStack {
@@ -143,13 +143,16 @@ struct NutritionView: View {
                         
                         Spacer() // Push content to the top
                     }
-                    .frame(height: geometry.size.height * 0.6)
+                    .frame(height: geometry.size.height * 0.5)
                     
-                    // Bottom 40% - Reserved for future content
+                    // Bottom 50% - Weekly Goals section
                     VStack {
-                        // Future content will be added here
+                        // Weekly Goals View
+                        WeeklyGoalsView(goals: $viewModel.nutritionGoals)
+                            .padding(.top, 16)
+                            .padding(.bottom, 30) // Reduced padding to avoid too much empty space
                     }
-                    .frame(height: geometry.size.height * 0.4)
+                    .frame(height: geometry.size.height * 0.5)
                 }
             }
         }
