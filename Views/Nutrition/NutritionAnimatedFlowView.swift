@@ -148,65 +148,34 @@ struct NutritionAnimatedFlowView: View {
             )
             .edgesIgnoringSafeArea(.all)
             
-            // Main content - single view that handles both detection and summary
-            if showFoods {
-                VStack {
-                    // Use our stub CameraPreviewHeaderView for the header
-                    CameraPreviewHeaderView(closeAction: {
-                        // Clean up the draft meal session when closing
-                        viewModel.cancelMealLoggingSession()
-                        showView = false
-                    })
-                    
-                    Spacer()
-                    
-                    // Main detection view
-                    SmartListDetectionView(
-                        viewModel: viewModel,
-                        foodImage: imageModel.selectedImage ?? foodImage,
-                        detectedLabels: detectedLabels,
-                        foodItems: $detectedFoods,
-                        showAddFood: $showAddFood,
-                        showFoods: $showFoods
-                    )
-                    .transition(.opacity)
-                }
-            }
-            
-            // Loading overlay
-            if showActivitySheet {
-                Rectangle()
-                    .fill(Color.black.opacity(0.7))
-                    .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        VStack {
-                            Text("Processing food items...")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.5)
-                                .padding()
-                        }
-                    )
+            // Main content - always show detection view without conditional
+            VStack {
+                // Use our stub CameraPreviewHeaderView for the header
+                CameraPreviewHeaderView(closeAction: {
+                    showView = false
+                })
+                
+                Spacer()
+                
+                // Main detection view
+                SmartListDetectionView(
+                    viewModel: viewModel,
+                    foodImage: imageModel.selectedImage ?? foodImage,
+                    detectedLabels: detectedLabels,
+                    foodItems: $detectedFoods,
+                    showAddFood: $showAddFood,
+                    showFoods: $showFoods
+                )
+                .transition(.opacity)
             }
         }
         .onAppear {
-            // Set processing flag when view appears
-            showActivitySheet = true
-            
-            // Process food labels if we have none
+            // Process food labels immediately without showing loading
             if detectedFoods.isEmpty {
                 processFoodLabels()
-                // Hide the activity sheet once processing is done
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showActivitySheet = false
-                    // Show the food detection view
-                    showFoods = true
-                }
+                // Set showFoods to true immediately
+                showFoods = true
             } else {
-                showActivitySheet = false
                 showFoods = true
             }
         }
@@ -224,17 +193,19 @@ struct NutritionAnimatedFlowView: View {
         }
         .onChange(of: showFoods) { newValue in
             if !newValue {
-                // User has logged the meal, dismiss this view
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    // Dismiss the view after a short delay to allow animation to complete
-                    showView = false
-                }
+                // User has logged the meal, dismiss this view immediately
+                presentationMode.wrappedValue.dismiss()
+                showView = false
             }
         }
-        .onDisappear {
-            // Ensure we clean up if view disappears unexpectedly
-            if viewModel.getCurrentDraftMeal() != nil {
-                viewModel.cancelMealLoggingSession()
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DismissAllMealViews"))) { _ in
+            // First, update all state variables to prevent view reappearance
+            showFoods = false
+            showView = false
+            
+            // Then dismiss with a slight delay to ensure state updates are processed
+            DispatchQueue.main.async {
+                presentationMode.wrappedValue.dismiss()
             }
         }
     }

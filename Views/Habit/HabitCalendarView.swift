@@ -3,7 +3,6 @@ import SwiftUI
 struct HabitCalendarView: View {
     @ObservedObject var viewModel: HabitTrackerViewModel
     @State private var selectedMonth = Date()
-    @State private var habitViewModels: [HabitViewModel] = []
     
     var body: some View {
         ZStack {
@@ -22,14 +21,11 @@ struct HabitCalendarView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         ForEach(viewModel.habits) { habit in
-                            // For each habit, display a progress card with calendar
-                            if let habitViewModel = habitViewModels.first(where: { $0.habits.contains(where: { $0.id == habit.id }) }) {
-                                HabitProgressCard(
-                                    habit: habit,
-                                    selectedMonth: selectedMonth,
-                                    viewModel: habitViewModel
-                                )
-                            }
+                            // Directly create HabitProgressCard. It gets the viewModel via @EnvironmentObject
+                            HabitProgressCard(
+                                habit: habit,
+                                selectedMonth: selectedMonth
+                            )
                         }
                     }
                     .padding(.bottom, 20)
@@ -46,9 +42,5 @@ struct HabitCalendarView: View {
             }
         }
         .environmentObject(viewModel)
-        .onAppear {
-            // Create a HabitViewModel for each habit
-            habitViewModels = [HabitViewModel(tracker: viewModel)]
-        }
     }
 } 

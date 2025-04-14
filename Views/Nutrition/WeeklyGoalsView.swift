@@ -46,7 +46,7 @@ struct WeeklyGoalsView: View {
                         ringWidth: 10,
                         title: "Calories",
                         color: .red,
-                        unitText: "kcal"
+                        unitText: "cal"
                     )
                     .frame(width: 100, height: 100)
                     .id("calories-\(viewKey)")

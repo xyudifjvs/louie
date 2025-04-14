@@ -70,6 +70,10 @@ struct SmartListDetectionView: View {
     // GeometryReader to get screen dimensions
     var body: some View {
         GeometryReader { geometry in
+            // Safety check for valid geometry values
+            let safeWidth = max(geometry.size.width, 300) // Minimum width of 300
+            let safeHeight = max(geometry.size.height, 500) // Minimum height of 500
+            
             ZStack {
                 // Background gradient
                 LinearGradient(
@@ -80,11 +84,11 @@ struct SmartListDetectionView: View {
                 .edgesIgnoringSafeArea(.all)
                 
                 VStack(spacing: 16) {
-                    // Top 50% - Image Card with optional score stamp
-                    imageCard(height: geometry.size.height * 0.45)
+                    // Top portion - Image Card with optional score stamp
+                    imageCard()
                     
-                    // Bottom 50% - Category Cards or Macro Cards in 2x2 Grid
-                    categoryOrMacroGridSection(width: geometry.size.width)
+                    // Bottom portion - Category Cards or Macro Cards in 2x2 Grid
+                    categoryOrMacroGridSection(width: safeWidth)
                     
                     // Bottom Buttons - Action Buttons or Log Meal Button
                     bottomButtons
@@ -93,45 +97,74 @@ struct SmartListDetectionView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 20)
             }
-        }
-        .onAppear {
-            // Calculate totals on appear just in case
-            calculateTotals()
+            .onAppear {
+                // Calculate totals on appear just in case
+                calculateTotals()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DismissAllMealViews"))) { _ in
+                // When we receive the notification, immediately dismiss
+                // Use a slight delay to ensure parent views have time to respond first
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    showFoods = false
+                }
+            }
         }
     }
     
     // MARK: - Image Card Section
-    private func imageCard(height: CGFloat) -> some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: 8) {
-                // Image title
+    private func imageCard() -> some View {
+        // Simple card with minimal nesting
+        VStack {
+            // Image title in separate view
+            HStack {
                 Text("Your Meal")
                     .font(.headline)
                     .foregroundColor(.white)
-                    .padding(.leading, 8)
-                
-                // Food image 
-                Image(uiImage: foodImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: height - 40) // Account for title and padding
-                    .clipped()
-                    .cornerRadius(16)
+                Spacer()
             }
-            .frame(height: height)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.black.opacity(0.2))
-            )
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
             
-            // Nutrition score stamp (conditionally shown)
-            if showNutritionSummary {
+            // Image container with fixed dimensions
+            Rectangle()
+                .fill(Color.black.opacity(0.2))
+                .frame(height: 180)
+                .cornerRadius(16)
+                .padding(.horizontal, 16)
+                .overlay(
+                    Group {
+                        if foodImage.size.width > 0 && !foodImage.size.width.isNaN && !foodImage.size.width.isInfinite {
+                            Image(uiImage: foodImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .cornerRadius(14)
+                                .padding(8)
+                        } else {
+                            Image(systemName: "photo")
+                                .font(.system(size: 60))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                    }
+                )
+            
+            // Add some padding at bottom
+            Spacer()
+                .frame(height: 12)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 250)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.black.opacity(0.2))
+        )
+        .overlay(
+            // Score stamp as overlay
+            showNutritionSummary ? 
                 nutritionScoreStamp()
                     .offset(x: -16, y: 16)
-                    .transition(.scale.combined(with: .opacity))
-            }
-        }
+                : nil,
+            alignment: .topTrailing
+        )
     }
     
     // Nutrition score stamp
@@ -171,12 +204,12 @@ struct SmartListDetectionView: View {
             HStack(spacing: 12) {
                 if showNutritionSummary {
                     // Show macro cards when in summary mode
-                    macroCard(type: .calories, value: Double(totalCalories), index: 0, width: width * 0.44)
-                    macroCard(type: .protein, value: totalMacros.protein, index: 1, width: width * 0.44)
+                    macroCard(type: .calories, value: Double(totalCalories), index: 0, width: max(width * 0.44, 150))
+                    macroCard(type: .protein, value: totalMacros.protein, index: 1, width: max(width * 0.44, 150))
                 } else {
                     // Show category cards in detection mode
-                    categoryCard(for: .proteins, index: 0, width: width * 0.44)
-                    categoryCard(for: .carbs, index: 1, width: width * 0.44)
+                    categoryCard(for: .proteins, index: 0, width: max(width * 0.44, 150))
+                    categoryCard(for: .carbs, index: 1, width: max(width * 0.44, 150))
                 }
             }
             
@@ -184,12 +217,12 @@ struct SmartListDetectionView: View {
             HStack(spacing: 12) {
                 if showNutritionSummary {
                     // Show macro cards when in summary mode
-                    macroCard(type: .carbs, value: totalMacros.carbs, index: 2, width: width * 0.44)
-                    macroCard(type: .fat, value: totalMacros.fat, index: 3, width: width * 0.44)
+                    macroCard(type: .carbs, value: totalMacros.carbs, index: 2, width: max(width * 0.44, 150))
+                    macroCard(type: .fat, value: totalMacros.fat, index: 3, width: max(width * 0.44, 150))
                 } else {
                     // Show category cards in detection mode
-                    categoryCard(for: .vegetables, index: 2, width: width * 0.44)
-                    categoryCard(for: .others, index: 3, width: width * 0.44)
+                    categoryCard(for: .vegetables, index: 2, width: max(width * 0.44, 150))
+                    categoryCard(for: .others, index: 3, width: max(width * 0.44, 150))
                 }
             }
         }
@@ -240,7 +273,7 @@ struct SmartListDetectionView: View {
             }
         }
         .padding(12)
-        .frame(width: width, height: width * 0.8)
+        .frame(width: width, height: max(width * 0.8, 120))
         .background(
             LinearGradient(
                 gradient: Gradient(colors: [
@@ -284,7 +317,7 @@ struct SmartListDetectionView: View {
                 .foregroundColor(.white.opacity(0.7))
         }
         .padding(12)
-        .frame(width: width, height: width * 0.8)
+        .frame(width: width, height: max(width * 0.8, 120))
         .background(
             LinearGradient(
                 gradient: Gradient(colors: [
@@ -381,28 +414,21 @@ struct SmartListDetectionView: View {
     
     // Log meal button
     private var logMealButton: some View {
-        Button(action: {
-            // Here we save the meal to the database and dismiss
-            logMealAndDismiss()
-        }) {
-            HStack {
-                Image(systemName: "square.and.arrow.down")
-                Text("Log Meal")
-            }
-            .font(.headline)
-            .foregroundColor(.white)
-            .padding(.vertical, 14)
-            .frame(maxWidth: .infinity)
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [Color(hexCode: "2a6041"), Color(hexCode: "1a1a2e")]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+        Button(action: logMealAndDismiss) {
+            Text("Log Meal")
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color(hexCode: "2a6041"), Color(hexCode: "1a1a2e")]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 )
-            )
-            .cornerRadius(12)
+                .cornerRadius(12)
         }
-        .padding(.top, 10)
     }
     
     // MARK: - Helper Methods
@@ -540,18 +566,29 @@ struct SmartListDetectionView: View {
     
     // Log the meal and dismiss
     private func logMealAndDismiss() {
-        // Update the draft meal with the currently selected food items
-        viewModel.updateDraftMeal(foods: foodItems)
+        // Create meal entry with all required data
+        let mealEntry = MealEntry(
+            timestamp: Date(),
+            imageData: foodImage.jpegData(compressionQuality: 0.7),
+            foods: foodItems,
+            nutritionScore: nutritionScore,
+            macronutrients: totalMacros
+        )
         
-        // Get the updated draft meal for confirmation
-        if let draftMeal = viewModel.getCurrentDraftMeal() {
-            // Finalize and save the meal
-            viewModel.finalizeDraftMeal()
-            
-            // Signal to parent view that we're done by setting showFoods to false
-            showFoods = false
-        } else {
-            print("⚠️ No draft meal found to log")
+        // Save the meal using the viewModel's CloudKit saving functionality
+        viewModel.saveMeal(mealEntry)
+        
+        // Use haptic feedback to signal successful logging
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+        
+        // First, update the local state to prevent view reappearance
+        showFoods = false
+        
+        // Slight delay to ensure state has time to update
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            // Then post notification to dismiss all views in the hierarchy
+            NotificationCenter.default.post(name: Notification.Name("DismissAllMealViews"), object: nil)
         }
     }
 }

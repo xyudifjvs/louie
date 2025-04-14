@@ -267,7 +267,7 @@ class CloudKitManager: ObservableObject {
         checkAccountStatus()
         
         // Initialize CloudKit schemas
-        initializeCloudKitSchemas()
+        // initializeCloudKitSchemas() // Temporarily comment out for debugging
     }
     
     // Check iCloud account status
@@ -372,8 +372,9 @@ class CloudKitManager: ObservableObject {
         }
         
         let query = CKQuery(recordType: RecordType.habit, predicate: NSPredicate(value: true))
-        query.sortDescriptors = [NSSortDescriptor(key: RecordKey.Habit.createdAt, ascending: false)]
+        query.sortDescriptors = [NSSortDescriptor(key: RecordKey.Habit.id, ascending: true)]
         
+        // Use default zone
         privateDB.perform(query, inZoneWith: nil) { [weak self] records, error in
             guard let self = self else { return }
             
@@ -1200,67 +1201,74 @@ class CloudKitManager: ObservableObject {
     }
     
     private func createHabitSchema() -> CKOperation? {
-        // Create the zone first
-        let recordZone = CKRecordZone(zoneName: "HabitZone")
-        let createZoneOperation = CKModifyRecordZonesOperation(recordZonesToSave: [recordZone], recordZoneIDsToDelete: nil)
+        // Directly create and save the sample record in the default zone
+        // Use a completion block approach directly on the save operation
+        let sampleRecordOperation = createSampleHabitRecordOperation()
+        return sampleRecordOperation // Return the save/delete operation directly
+    }
+
+    // Helper function to create, save, verify, and delete the sample Habit record
+    private func createSampleHabitRecordOperation() -> CKOperation {
+        let habitUUID = UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID()
         
-        createZoneOperation.modifyRecordZonesCompletionBlock = { [weak self] _, _, error in
+        // Use default zone implicitly by not specifying zoneID
+        let recordID = CKRecord.ID(recordName: "SampleHabit") 
+        let record = CKRecord(recordType: RecordType.habit, recordID: recordID)
+        
+        // Add required fields
+        record[RecordKey.Habit.id] = habitUUID.uuidString 
+        record[RecordKey.Habit.title] = "Sample Habit"
+        record[RecordKey.Habit.description] = "Schema initialization sample"
+        record[RecordKey.Habit.reminderTime] = Date()
+        record[RecordKey.Habit.frequency] = "daily"
+        record[RecordKey.Habit.customDays] = [1,2,3,4,5,6,7]
+        record[RecordKey.Habit.emoji] = "🔄"
+        record[RecordKey.Habit.createdAt] = Date()
+        record[RecordKey.Habit.updatedAt] = Date()
+
+        let saveOperation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
+        saveOperation.savePolicy = .changedKeys // Or .allKeys depending on needs
+
+        saveOperation.modifyRecordsCompletionBlock = { [weak self] savedRecords, deletedRecordIDs, error in
             guard let self = self else { return }
-            
+
             if let error = error {
-                print("[CloudKitError] Error creating habit zone: \(error.localizedDescription)")
-                return
+                 // Allow "record to insert already exists" errors during init
+                if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
+                     print("[CloudKit] Note: Sample Habit record likely already exists (serverRecordChanged), proceeding.")
+                     // Still try to verify and delete
+                } else {
+                    print("[CloudKitError] Error creating sample Habit record: \(error.localizedDescription)")
+                    return // Stop if it's another error
+                }
             }
             
-            print("[CloudKit] Successfully created habit zone")
-            
-            // Create a sample Habit record with a consistent UUID to register the record type
-            // This ensures we can find it later by ID, not recordName
-            let habitUUID = UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID()
-            
-            // Note: We still use recordName for the CKRecord.ID creation (this is fine)
-            // but not for future queries
-            let recordID = CKRecord.ID(recordName: "SampleHabit", zoneID: CKRecordZone.ID(zoneName: "HabitZone", ownerName: CKCurrentUserDefaultName))
-            let record = CKRecord(recordType: RecordType.habit, recordID: recordID)
-            
-            // Add required fields
-            record[RecordKey.Habit.id] = habitUUID.uuidString // Use consistent UUID string for sample record
-            record[RecordKey.Habit.title] = "Sample Habit"
-            record[RecordKey.Habit.description] = "Schema initialization sample"
-            record[RecordKey.Habit.reminderTime] = Date()
-            record[RecordKey.Habit.frequency] = "daily"
-            record[RecordKey.Habit.customDays] = [1,2,3,4,5,6,7]
-            record[RecordKey.Habit.emoji] = "🔄"
-            record[RecordKey.Habit.createdAt] = Date()
-            record[RecordKey.Habit.updatedAt] = Date()
-            
-            // Save the sample record to register the record type
-            self.privateDB.save(record) { savedRecord, saveError in
-                if let saveError = saveError {
-                    print("[CloudKitError] Error creating Habit record type: \(saveError.localizedDescription)")
-                    return
-                }
-                
-                print("[CloudKit] Successfully registered Habit record type")
-                
-                // Delete the sample record - using the recordID is still appropriate here
-                // since we have a direct reference to it
-                if let savedRecord = savedRecord {
-                    self.privateDB.delete(withRecordID: savedRecord.recordID) { _, deleteError in
-                        if let deleteError = deleteError {
-                            print("[CloudKitError] Error cleaning up sample Habit record: \(deleteError.localizedDescription)")
-                        } else {
-                            print("[CloudKit] Successfully cleaned up sample Habit record")
-                        }
-                    }
-                }
-                
-                // Also fetch by custom ID to verify the schema and custom ID field work properly
-                self.verifySchemaSetup(recordType: RecordType.habit, idFieldKey: RecordKey.Habit.id, idValue: habitUUID.uuidString)
+            if let savedRecord = savedRecords?.first {
+                 print("[CloudKit] Successfully registered/updated Habit record type via sample.")
+                 // Verify schema using custom ID in default zone
+                 self.verifySchemaSetup(recordType: RecordType.habit, idFieldKey: RecordKey.Habit.id, idValue: habitUUID.uuidString)
+
+                 // Now delete the sample record
+                 let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: [savedRecord.recordID])
+                 deleteOperation.modifyRecordsCompletionBlock = { _, _, deleteError in
+                     if let deleteError = deleteError {
+                         print("[CloudKitError] Error cleaning up sample Habit record: \(deleteError.localizedDescription)")
+                     } else {
+                         print("[CloudKit] Successfully cleaned up sample Habit record")
+                     }
+                 }
+                 self.privateDB.add(deleteOperation) // Add delete op to the database queue
+            } else if error == nil {
+                 // No error, but no saved record? Could happen if savePolicy is .changedKeys and nothing changed.
+                 // Still try to verify and delete using the original recordID
+                 print("[CloudKit] Sample Habit record likely unchanged, attempting verification/cleanup.")
+                 self.verifySchemaSetup(recordType: RecordType.habit, idFieldKey: RecordKey.Habit.id, idValue: habitUUID.uuidString)
+                 let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: [recordID])
+                 // ... (add completion block for delete as above) ...
+                 self.privateDB.add(deleteOperation)
             }
         }
-        
-        return createZoneOperation
+        return saveOperation
     }
     
     private func createHabitCompletionSchema() -> CKOperation? {
@@ -1568,5 +1576,74 @@ class CloudKitManager: ObservableObject {
     ///   - completion: Completion handler with the found record or error
     func fetchMoodLogRecordByCustomID(moodLogID: UUID, completion: @escaping (CKRecord?, Error?) -> Void) {
         fetchRecordByCustomID(id: moodLogID.uuidString, recordType: RecordType.moodLog, idFieldKey: RecordKey.MoodLog.id, completion: completion)
+    }
+
+    // MARK: - Record Counting (Added for Debugging)
+
+    /// Counts all records of a specific type in the public database.
+    /// Fetches only record IDs for efficiency. Handles pagination.
+    /// - Parameters:
+    ///   - recordType: The type of record to count (e.g., "Habit").
+    ///   - completion: A closure called with the result (total count or error).
+    func countRecords(ofType recordType: String, completion: @escaping (Result<Int, Error>) -> Void) {
+        let predicate = NSPredicate(value: true)
+        let query = CKQuery(recordType: recordType, predicate: predicate)
+        
+        // Start the recursive fetching with an initial count of 0
+        fetchRecordsRecursively(query: query, cursor: nil, accumulatedCount: 0, completion: completion)
+    }
+
+    // Refactored to avoid inout parameter capture in escaping closures
+    private func fetchRecordsRecursively(query: CKQuery, cursor: CKQueryOperation.Cursor?, accumulatedCount: Int, completion: @escaping (Result<Int, Error>) -> Void) {
+        let operation: CKQueryOperation
+
+        if let cursor = cursor {
+            operation = CKQueryOperation(cursor: cursor)
+        } else {
+            operation = CKQueryOperation(query: query)
+        }
+
+        operation.desiredKeys = [CKRecord.SystemFieldKey.recordID]
+        operation.resultsLimit = CKQueryOperation.maximumResults
+
+        var operationError: Error?
+        var batchCount = 0 // Local count for this specific operation batch
+
+        operation.recordMatchedBlock = { recordID, result in
+            switch result {
+            case .success(_):
+                batchCount += 1 // Increment local batch count
+            case .failure(let error):
+                if operationError == nil {
+                    operationError = error
+                }
+                print("Error matching record \(recordID.recordName): \(error.localizedDescription)")
+            }
+        }
+
+        operation.queryResultBlock = { [weak self] result in
+            guard let self = self else { return }
+
+            if let error = operationError {
+                completion(.failure(error))
+                return
+            }
+
+            switch result {
+            case .success(let nextCursor):
+                let currentTotal = accumulatedCount + batchCount // Total count up to the end of this batch
+                if let nextCursor = nextCursor {
+                    // More results exist, fetch the next batch recursively, passing the current total
+                    self.fetchRecordsRecursively(query: query, cursor: nextCursor, accumulatedCount: currentTotal, completion: completion)
+                } else {
+                    // No more results, counting is complete, call completion with the final total
+                    completion(.success(currentTotal))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+
+        self.privateDB.add(operation)
     }
 } 

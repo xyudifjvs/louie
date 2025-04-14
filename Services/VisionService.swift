@@ -169,8 +169,9 @@ class VisionService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10 // Add shorter timeout for faster failure
         
-        // Create JSON request body
+        // Create JSON request body - OPTIMIZED TO REQUEST ONLY LABEL_DETECTION
         let requestBody: [String: Any] = [
             "requests": [
                 [
@@ -180,16 +181,9 @@ class VisionService {
                     "features": [
                         [
                             "type": "LABEL_DETECTION",
-                            "maxResults": 15
-                        ],
-                        [
-                            "type": "WEB_DETECTION",
-                            "maxResults": 10
-                        ],
-                        [
-                            "type": "OBJECT_LOCALIZATION",
-                            "maxResults": 10
+                            "maxResults": 10 // Reduced from 15 for faster response
                         ]
+                        // Removed WEB_DETECTION and OBJECT_LOCALIZATION for faster response
                     ]
                 ]
             ]

@@ -22,6 +22,11 @@ struct CameraView: View {
     @State private var detectedLabels: [LabelAnnotation] = []
     @State private var analyzedImage: UIImage?
     @State private var useAnimatedFlow = true
+    @State private var isHorizontalScanActive = false
+    @State private var isVerticalScanActive = false
+    @State private var horizontalScanProgress: CGFloat = 0.0
+    @State private var verticalScanProgress: CGFloat = 0.0
+    @State private var animationStartTime: TimeInterval = 0
     
     var body: some View {
         ZStack {
@@ -117,23 +122,61 @@ struct CameraView: View {
                 }
             }
             
-            // Loading overlay when analyzing
-            if isAnalyzing {
-                Rectangle()
-                    .fill(Color.black.opacity(0.7))
-                    .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        VStack {
-                            Text("Analyzing your meal...")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.5)
-                                .padding()
-                        }
-                    )
+            // Scanning effect overlay when analyzing
+            if isAnalyzing, let image = cameraManager.image {
+                GeometryReader { geometry in
+                    ZStack {
+                        // Transparent overlay to position scan bars
+                        Rectangle()
+                            .fill(Color.clear)
+                            .overlay(
+                                ZStack {
+                                    // Horizontal scan bar (top to bottom)
+                                    if isHorizontalScanActive {
+                                        Rectangle()
+                                            .fill(
+                                                LinearGradient(
+                                                    gradient: Gradient(colors: [Color(hexCode: "4CD964").opacity(0.3), Color(hexCode: "4CD964"), Color(hexCode: "4CD964").opacity(0.3)]),
+                                                    startPoint: .leading,
+                                                    endPoint: .trailing
+                                                )
+                                            )
+                                            .frame(height: 15)
+                                            .position(x: geometry.size.width / 2, y: geometry.size.height * horizontalScanProgress)
+                                            .shadow(color: Color(hexCode: "4CD964").opacity(0.9), radius: 15, x: 0, y: 0)
+                                            .overlay(
+                                                Rectangle()
+                                                    .fill(Color.clear)
+                                                    .frame(height: 15)
+                                                    .shadow(color: Color(hexCode: "4CD964").opacity(0.6), radius: 10, x: 0, y: 0)
+                                            )
+                                    }
+                                    
+                                    // Vertical scan bar (left to right)
+                                    if isVerticalScanActive {
+                                        Rectangle()
+                                            .fill(
+                                                LinearGradient(
+                                                    gradient: Gradient(colors: [Color(hexCode: "4CD964").opacity(0.3), Color(hexCode: "4CD964"), Color(hexCode: "4CD964").opacity(0.3)]),
+                                                    startPoint: .top,
+                                                    endPoint: .bottom
+                                                )
+                                            )
+                                            .frame(width: 15)
+                                            .position(x: geometry.size.width * verticalScanProgress, y: geometry.size.height / 2)
+                                            .shadow(color: Color(hexCode: "4CD964").opacity(0.9), radius: 15, x: 0, y: 0)
+                                            .overlay(
+                                                Rectangle()
+                                                    .fill(Color.clear)
+                                                    .frame(width: 15)
+                                                    .shadow(color: Color(hexCode: "4CD964").opacity(0.6), radius: 10, x: 0, y: 0)
+                                            )
+                                    }
+                                }
+                            )
+                    }
+                }
+                .edgesIgnoringSafeArea(.all)
             }
         }
         .onAppear {
@@ -141,6 +184,16 @@ struct CameraView: View {
         }
         .onDisappear {
             cameraManager.stopSession()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DismissAllMealViews"))) { _ in
+            // First, set all state variables to false to prevent view reappearance
+            self.showResultsView = false
+            self.showCameraView = false
+            
+            // Then dismiss the view with a slight delay to ensure state updates first
+            DispatchQueue.main.async {
+                presentationMode.wrappedValue.dismiss()
+            }
         }
         .alert(isPresented: $showAlert) {
             Alert(
@@ -153,7 +206,9 @@ struct CameraView: View {
         }
         .fullScreenCover(isPresented: $showResultsView, onDismiss: {
             // Dismiss back to the main view when the meal flow is completed
+            // Set showCameraView to false *before* dismissal to prevent reappearance
             showCameraView = false
+            presentationMode.wrappedValue.dismiss()
         }) {
             if useAnimatedFlow {
                 // Use the new animated UI flow
@@ -214,24 +269,94 @@ struct CameraView: View {
     private func analyzeImage(_ image: UIImage) {
         isAnalyzing = true
         
-        // Use the VisionService directly to analyze the image
-        VisionService.shared.analyzeFood(image: image) { result in
-            DispatchQueue.main.async {
-                self.isAnalyzing = false
-                
-                switch result {
-                case .success(let foodLabels):
-                    // Store the results and show the detection view
-                    self.detectedLabels = foodLabels
-                    self.analyzedImage = image
-                    self.showResultsView = true
+        // Record animation start time
+        animationStartTime = Date().timeIntervalSince1970
+        
+        // Store the image immediately
+        self.analyzedImage = image
+        
+        // Start horizontal scan animation
+        isHorizontalScanActive = true
+        withAnimation(.linear(duration: 1.5)) {
+            horizontalScanProgress = 1.0
+        }
+        
+        // After horizontal scan completes, start vertical scan
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isHorizontalScanActive = false
+            isVerticalScanActive = true
+            withAnimation(.linear(duration: 1.5)) {
+                verticalScanProgress = 1.0
+            }
+        }
+        
+        // Process image on background thread with high priority
+        DispatchQueue.global(qos: .userInteractive).async {
+            // Pre-process image to smaller size before API call
+            let processedImage = self.optimizeImageForAnalysis(image)
+            
+            // Use the VisionService to analyze the image
+            VisionService.shared.analyzeFood(image: processedImage) { result in
+                DispatchQueue.main.async {
+                    // Calculate time elapsed since animation started
+                    let elapsedTime = Date().timeIntervalSince1970 - self.animationStartTime
+                    let remainingAnimationTime = max(0, 3.0 - elapsedTime)
                     
-                case .failure(let error):
-                    self.alertMessage = "Food detection failed: \(error.description)"
-                    self.showAlert = true
+                    // Wait for both animations to complete before showing results
+                    DispatchQueue.main.asyncAfter(deadline: .now() + remainingAnimationTime) {
+                        self.isAnalyzing = false
+                        self.isVerticalScanActive = false
+                        self.horizontalScanProgress = 0.0
+                        self.verticalScanProgress = 0.0
+                        
+                        switch result {
+                        case .success(let foodLabels):
+                            // Store the results and show the detection view
+                            self.detectedLabels = foodLabels
+                            self.showResultsView = true
+                            
+                        case .failure(let error):
+                            self.alertMessage = "Food detection failed: \(error.description)"
+                            self.showAlert = true
+                        }
+                    }
                 }
             }
         }
+    }
+    
+    // Helper method to optimize images before sending to API
+    private func optimizeImageForAnalysis(_ image: UIImage) -> UIImage {
+        // Use a smaller max dimension (800px instead of 1024px)
+        let maxDimension: CGFloat = 800
+        
+        let originalWidth = image.size.width
+        let originalHeight = image.size.height
+        
+        // Check if resizing is needed
+        if originalWidth <= maxDimension && originalHeight <= maxDimension {
+            return image
+        }
+        
+        // Calculate new dimensions while maintaining aspect ratio
+        var newWidth: CGFloat
+        var newHeight: CGFloat
+        
+        if originalWidth > originalHeight {
+            newWidth = maxDimension
+            newHeight = (originalHeight / originalWidth) * maxDimension
+        } else {
+            newHeight = maxDimension
+            newWidth = (originalWidth / originalHeight) * maxDimension
+        }
+        
+        // Create a new context and draw the resized image
+        UIGraphicsBeginImageContextWithOptions(CGSize(width: newWidth, height: newHeight), false, 1.0)
+        image.draw(in: CGRect(x: 0, y: 0, width: newWidth, height: newHeight))
+        let resizedImage = UIGraphicsGetImageFromCurrentImageContext() ?? image
+        UIGraphicsEndImageContext()
+        
+        return resizedImage
     }
 }
 

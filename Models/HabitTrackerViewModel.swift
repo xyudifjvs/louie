@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import CloudKit
 
 // MARK: - Habit Tracker Module (Dark UI Example)
 class HabitTrackerViewModel: ObservableObject {
@@ -41,6 +42,7 @@ class HabitTrackerViewModel: ObservableObject {
     func addHabit(title: String, description: String, reminderTime: Date, frequency: HabitFrequency, customDays: [Int] = [], emoji: String = "📝") {
         guard !title.isEmpty else { return }
         let newHabit = Habit(
+            id: UUID(),
             title: title,
             description: description,
             reminderTime: reminderTime,
@@ -56,10 +58,11 @@ class HabitTrackerViewModel: ObservableObject {
     }
     
     func toggleCompletion(for habit: Habit) {
+        print("🔵 toggleCompletion called for habit: \(habit.title) (ID: \(habit.id))")
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
+            print("🔵 Found habit at index: \(index). Current completed state: \(habits[index].completed)")
             habits[index].completed.toggle()
-            let day = Calendar.current.component(.day, from: Date())
-            habits[index].progress[day] = habits[index].completed
+            print("🔵 Toggled completed state to: \(habits[index].completed)")
             
             // Update completions dictionary for HabitGridView compatibility
             let calendar = Calendar.current
@@ -78,21 +81,27 @@ class HabitTrackerViewModel: ObservableObject {
     }
     
     // Function to get completion status for a habit on a specific date
-    func getCompletionStatus(forHabit index: Int, on date: Date) -> CompletionStatus {
-        guard index >= 0 && index < habits.count else {
-            return CompletionStatus.noData
-        }
-        
-        let habit = habits[index]
+    func getCompletionStatusByID(forHabit habitID: UUID, on date: Date) -> CompletionStatus {
         let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date) // Ensure we use start of day for lookup
         
-        let day = calendar.component(.day, from: date)
-        if let isCompleted = habit.progress[day] {
-            return isCompleted ? CompletionStatus.completed : CompletionStatus.notCompleted
+        // Read from the completions dictionary using habitID
+        if let habitCompletions = completions[habitID],
+           let status = habitCompletions[startOfDay] {
+            return status
         }
         
-        // No data for this date
+        // If no entry in completions, return noData
         return CompletionStatus.noData
+    }
+    
+    // Helper function for calculateStreak which still uses index
+    private func getCompletionStatusByIndex(forHabit index: Int, on date: Date) -> CompletionStatus {
+        guard index >= 0 && index < habits.count else {
+            return .noData
+        }
+        let habitID = habits[index].id
+        return getCompletionStatusByID(forHabit: habitID, on: date)
     }
     
     func reorderHabits(fromIndex: Int, toIndex: Int) {
@@ -122,17 +131,35 @@ class HabitTrackerViewModel: ObservableObject {
         }
         
         // Don't save to CloudKit if we're currently syncing from CloudKit
+        // Also, avoid potential loops by not automatically syncing *all* habits on every local save.
+        // Consider a more deliberate sync strategy.
+        /* // Comment out automatic sync-all
         if !isSyncingWithCloud {
             syncHabitsToCloud()
         }
+        */
     }
     
     private func loadHabits() {
         if let savedHabits = UserDefaults.standard.data(forKey: "habits") {
-            if let decodedHabits = try? JSONDecoder().decode([Habit].self, from: savedHabits) {
-                habits = decodedHabits
+            if var decodedHabits = try? JSONDecoder().decode([Habit].self, from: savedHabits) {
+                // Filter out duplicates based on ID
+                var uniqueHabits: [Habit] = []
+                var seenIDs = Set<UUID>()
+                for habit in decodedHabits {
+                    if !seenIDs.contains(habit.id) {
+                        uniqueHabits.append(habit)
+                        seenIDs.insert(habit.id)
+                    }
+                }
+                
+                // Assign the de-duplicated array
+                habits = uniqueHabits
+                print("🔵 Loaded \(habits.count) unique habits from UserDefaults.")
             }
         }
+        // Add call to load mood/notes data if it exists
+        // loadFromLocalStorage() // Assuming this is defined elsewhere if needed
     }
     
     func addMoodEntry(for habit: Habit, mood: Mood, reflection: String = "") {
@@ -249,127 +276,154 @@ class HabitTrackerViewModel: ObservableObject {
         
         // Fetch habits from CloudKit
         cloudKitManager.fetchHabits { [weak self] result in
-            guard let self = self else { return }
-            
-            switch result {
-            case .success(let ckHabits):
-                // Convert CKHabits to app's Habit model
-                let cloudHabits = ckHabits.compactMap { ckHabit -> Habit? in
-                    guard let id = UUID(uuidString: ckHabit.id.uuidString),
-                          let frequency = HabitFrequency(rawValue: ckHabit.frequency) else {
-                        return nil
+            // Ensure UI updates happen on the main thread
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                switch result {
+                case .success(let ckHabits):
+                    // Convert CKHabits to app's Habit model
+                    let cloudHabits = ckHabits.compactMap { ckHabit -> Habit? in
+                        guard let id = UUID(uuidString: ckHabit.id.uuidString),
+                              let frequency = HabitFrequency(rawValue: ckHabit.frequency) else {
+                            return nil
+                        }
+                        
+                        var habit = Habit(
+                            id: id,
+                            title: ckHabit.title,
+                            description: ckHabit.description,
+                            reminderTime: ckHabit.reminderTime,
+                            frequency: frequency,
+                            customDays: ckHabit.customDays,
+                            emoji: ckHabit.emoji
+                        )
+                        
+                        // Fetch completions for this habit (might also need main thread dispatch later)
+                        self.fetchCompletionsForHabit(habit: habit)
+                        
+                        return habit
                     }
                     
-                    var habit = Habit(
-                        id: id,
-                        title: ckHabit.title,
-                        description: ckHabit.description,
-                        reminderTime: ckHabit.reminderTime,
-                        frequency: frequency,
-                        customDays: ckHabit.customDays,
-                        emoji: ckHabit.emoji
-                    )
+                    // Merge cloud habits with local habits
+                    self.mergeHabitsFromCloud(cloudHabits)
                     
-                    // Fetch completions for this habit
-                    self.fetchCompletionsForHabit(habit: habit)
-                    
-                    return habit
+                case .failure(let error):
+                    // More detailed error logging
+                    print("🔴 ERROR syncing habits with CloudKit: \(error.localizedDescription)")
+                    if let ckError = error as? CKError {
+                        print("🔴 CloudKit Error Code: \(ckError.code.rawValue)")
+                        print("🔴 CloudKit UserInfo: \(ckError.userInfo)")
+                    }
+                    let errorMessage = self.cloudKitManager.handleCloudKitError(error) ?? "Unknown error syncing habits"
+                    print("🔴 Processed Error Message: \(errorMessage)")
                 }
                 
-                // Merge cloud habits with local habits
-                self.mergeHabitsFromCloud(cloudHabits)
-                
-            case .failure(let error):
-                print("Error syncing with CloudKit: \(error.localizedDescription)")
-                let errorMessage = self.cloudKitManager.handleCloudKitError(error) ?? "Unknown error syncing with CloudKit"
-                print(errorMessage)
-            }
-            
-            self.isSyncingWithCloud = false
+                self.isSyncingWithCloud = false // Update on main thread
+            } // End DispatchQueue.main.async
         }
     }
     
     /// Fetch completions for a specific habit
     private func fetchCompletionsForHabit(habit: Habit) {
         cloudKitManager.fetchHabitCompletions(habitID: habit.id) { [weak self] result in
-            guard let self = self else { return }
-            
-            switch result {
-            case .success(let ckCompletions):
-                // Initialize completion dictionary for this habit if needed
-                if self.completions[habit.id] == nil {
-                    self.completions[habit.id] = [:]
-                }
+            // Ensure UI updates happen on the main thread
+            DispatchQueue.main.async {
+                guard let self = self else { return }
                 
-                // Add completions to dictionary
-                for ckCompletion in ckCompletions {
-                    let status: CompletionStatus
-                    switch ckCompletion.status {
-                    case "completed":
-                        status = .completed
-                    case "notCompleted":
-                        status = .notCompleted
-                    default:
-                        status = .noData
+                switch result {
+                case .success(let ckCompletions):
+                    // Initialize completion dictionary for this habit if needed
+                    if self.completions[habit.id] == nil {
+                        self.completions[habit.id] = [:]
                     }
                     
-                    let calendar = Calendar.current
-                    let date = calendar.startOfDay(for: ckCompletion.date)
-                    self.completions[habit.id]?[date] = status
-                    
-                    // Also update habits array for consistency
-                    if let index = self.habits.firstIndex(where: { $0.id == habit.id }) {
-                        let day = calendar.component(.day, from: date)
-                        self.habits[index].progress[day] = (status == .completed)
-                        
-                        // If today, update completed property
-                        if calendar.isDateInToday(date) {
-                            self.habits[index].completed = (status == .completed)
+                    // Add completions to dictionary
+                    for ckCompletion in ckCompletions {
+                        let status: CompletionStatus
+                        switch ckCompletion.status {
+                        case "completed":
+                            status = .completed
+                        case "notCompleted":
+                            status = .notCompleted
+                        default:
+                            status = .noData
                         }
+                        
+                        let calendar = Calendar.current
+                        let date = calendar.startOfDay(for: ckCompletion.date)
+                        self.completions[habit.id]?[date] = status
                     }
+                    
+                    // Update streaks
+                    self.updateStreaksForHabit(habitID: habit.id)
+                    
+                case .failure(let error):
+                    print("Error fetching completions for habit: \(error.localizedDescription)")
                 }
-                
-                // Update streaks
-                self.updateStreaksForHabit(habitID: habit.id)
-                
-            case .failure(let error):
-                print("Error fetching completions for habit: \(error.localizedDescription)")
-            }
+            } // End DispatchQueue.main.async
         }
     }
     
     /// Merge habits from CloudKit with local habits
     private func mergeHabitsFromCloud(_ cloudHabits: [Habit]) {
-        var mergedHabits: [Habit] = []
+        // Use a dictionary for efficient local lookup by ID
+        var localHabitsDict = Dictionary(uniqueKeysWithValues: self.habits.map { ($0.id, $0) })
+        var habitsToAdd: [Habit] = []
+        var habitsToUpdate: [Habit] = []
         
-        // Add local habits that don't exist in cloud
-        for localHabit in habits {
-            if !cloudHabits.contains(where: { $0.id == localHabit.id }) {
-                mergedHabits.append(localHabit)
-                
-                // Save to cloud if it doesn't exist there
-                saveHabitToCloud(localHabit)
-            }
-        }
-        
-        // Add cloud habits
+        // Process cloud habits
         for cloudHabit in cloudHabits {
-            // If habit exists locally, use the more recently updated one
-            if let localIndex = habits.firstIndex(where: { $0.id == cloudHabit.id }) {
-                let localHabit = habits[localIndex]
-                
-                // For now, just use the cloud version
-                // In a full implementation, you'd compare timestamps and merge data
-                mergedHabits.append(cloudHabit)
+            if let existingLocalHabit = localHabitsDict[cloudHabit.id] {
+                // Habit exists locally. Compare timestamps (if available) or decide on merge strategy.
+                // For now, let's assume cloud wins if different (simplest approach).
+                // A real merge might compare updatedAt timestamps.
+                if existingLocalHabit != cloudHabit { // Basic check if they differ
+                    habitsToUpdate.append(cloudHabit)
+                }
+                // Remove from dict so we know it was matched
+                localHabitsDict.removeValue(forKey: cloudHabit.id)
             } else {
-                // If habit only exists in cloud, add it
-                mergedHabits.append(cloudHabit)
+                // Habit only exists in the cloud, add it.
+                habitsToAdd.append(cloudHabit)
             }
         }
         
-        // Update habits array
-        DispatchQueue.main.async {
-            self.habits = mergedHabits
+        // Process local habits that were NOT in the cloud
+        // These might be new habits created offline.
+        let localOnlyHabits = Array(localHabitsDict.values)
+        for localHabit in localOnlyHabits {
+            // Save these to the cloud
+            saveHabitToCloud(localHabit)
+        }
+        
+        // Apply updates and additions to the main habits array
+        DispatchQueue.main.async { // Ensure this update is on the main thread
+            var finalHabits = self.habits // Start with current local habits
+            
+            // Remove habits that were updated (we'll add the updated version)
+            let updateIDs = Set(habitsToUpdate.map { $0.id })
+            finalHabits.removeAll { updateIDs.contains($0.id) }
+            
+            // Add the updated and new habits
+            finalHabits.append(contentsOf: habitsToUpdate)
+            finalHabits.append(contentsOf: habitsToAdd)
+            
+            // You might want to re-sort the list here, e.g., by createdAt descending
+            finalHabits.sort { (h1: Habit, h2: Habit) -> Bool in
+                // Assuming Habit has createdAt property for sorting
+                // If not, replace with appropriate property like title or reminderTime
+                // Ensure createdAt exists and is comparable
+                // return h1.createdAt > h2.createdAt 
+                return h1.title < h2.title // Example: Sort alphabetically by title if createdAt is missing
+            }
+            
+            // Update the main published property
+            // Check if the array content has actually changed before assigning to avoid unnecessary UI updates
+            if self.habits != finalHabits {
+                self.habits = finalHabits
+                print("🔵 Habits merged. Total count: \(self.habits.count)")
+            }
         }
     }
     
@@ -384,11 +438,16 @@ class HabitTrackerViewModel: ObservableObject {
     /// Save a habit to CloudKit
     private func saveHabitToCloud(_ habit: Habit) {
         cloudKitManager.saveHabit(habit) { result in
-            switch result {
-            case .success:
-                print("Successfully saved habit to CloudKit: \(habit.title)")
-            case .failure(let error):
-                print("Error saving habit to CloudKit: \(error.localizedDescription)")
+            // Dispatch UI-related logging or potential future state updates to main thread
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("Successfully saved habit to CloudKit: \(habit.title)")
+                    // Potentially update some state here if needed
+                case .failure(let error):
+                    print("Error saving habit to CloudKit: \(error.localizedDescription)")
+                    // Potentially update error state here if needed
+                }
             }
         }
     }
@@ -396,11 +455,14 @@ class HabitTrackerViewModel: ObservableObject {
     /// Save a completion status to CloudKit
     private func saveCompletionToCloud(habitID: UUID, date: Date, status: CompletionStatus) {
         cloudKitManager.saveHabitCompletion(habitID: habitID, date: date, status: status) { result in
-            switch result {
-            case .success:
-                print("Successfully saved completion status to CloudKit")
-            case .failure(let error):
-                print("Error saving completion status to CloudKit: \(error.localizedDescription)")
+            // Dispatch UI-related logging or potential future state updates to main thread
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("Successfully saved completion status to CloudKit")
+                case .failure(let error):
+                    print("Error saving completion status to CloudKit: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -408,11 +470,14 @@ class HabitTrackerViewModel: ObservableObject {
     /// Save mood and notes to CloudKit
     private func saveMoodToCloud(habitID: UUID, date: Date, mood: String?, notes: String) {
         cloudKitManager.saveMoodLog(habitID: habitID, date: date, mood: mood, notes: notes) { result in
-            switch result {
-            case .success:
-                print("Successfully saved mood log to CloudKit")
-            case .failure(let error):
-                print("Error saving mood log to CloudKit: \(error.localizedDescription)")
+            // Dispatch UI-related logging or potential future state updates to main thread
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("Successfully saved mood log to CloudKit")
+                case .failure(let error):
+                    print("Error saving mood log to CloudKit: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -420,11 +485,14 @@ class HabitTrackerViewModel: ObservableObject {
     /// Delete a habit from CloudKit
     private func deleteHabitFromCloud(habitID: UUID) {
         cloudKitManager.deleteHabit(habitID: habitID) { result in
-            switch result {
-            case .success:
-                print("Successfully deleted habit from CloudKit")
-            case .failure(let error):
-                print("Error deleting habit from CloudKit: \(error.localizedDescription)")
+            // Dispatch UI-related logging or potential future state updates to main thread
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("Successfully deleted habit from CloudKit")
+                case .failure(let error):
+                    print("Error deleting habit from CloudKit: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -450,7 +518,8 @@ class HabitTrackerViewModel: ObservableObject {
         var currentDate = today
         
         while true {
-            let status = getCompletionStatus(forHabit: index, on: currentDate)
+            // Use the helper function that takes an index
+            let status = getCompletionStatusByIndex(forHabit: index, on: currentDate)
             
             if status == CompletionStatus.completed {
                 streak += 1
@@ -484,7 +553,7 @@ class HabitTrackerViewModel: ObservableObject {
     func logHabitCompletion(_ habitId: UUID, day: Int, isCompleted: Bool) {
         if let index = habits.firstIndex(where: { $0.id == habitId }) {
             // Update the habit's progress
-            habits[index].progress[day] = isCompleted
+            // habits[index].progress[day] = isCompleted
             
             // Update completions dictionary for consistency
             let calendar = Calendar.current
@@ -532,8 +601,6 @@ class HabitTrackerViewModel: ObservableObject {
         guard index >= 0 && index < habits.count else { return }
         
         habits[index].completed.toggle()
-        let day = Calendar.current.component(.day, from: Date())
-        habits[index].progress[day] = habits[index].completed
         
         // Update completions dictionary for consistency
         let calendar = Calendar.current

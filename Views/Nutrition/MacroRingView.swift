@@ -41,7 +41,7 @@ struct MacroRingView: View, Equatable {
             
             // Progress ring
             Circle()
-                .trim(from: 0, to: progress)
+                .trim(from: 0, to: calculateTrimValue())
                 .stroke(
                     color, 
                     style: StrokeStyle(
@@ -50,6 +50,7 @@ struct MacroRingView: View, Equatable {
                     )
                 )
                 .rotationEffect(.degrees(-90))
+                .animation(.easeInOut(duration: 0.8), value: progress)
                 .shadow(color: color.opacity(0.3), radius: 3, x: 0, y: 0)
             
             // Content
@@ -82,8 +83,13 @@ struct MacroRingView: View, Equatable {
     
     private func updateProgress() {
         withAnimation(.easeInOut(duration: 0.8)) {
-            progress = CGFloat(min(value / maxValue, 1.0))
+            progress = calculateTrimValue()
         }
+    }
+    
+    private func calculateTrimValue() -> CGFloat {
+        guard maxValue > 0 else { return 0 }
+        return CGFloat(min(value / maxValue, 1.0))
     }
     
     // Equatable implementation to detect changes in value or maxValue

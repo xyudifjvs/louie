@@ -15,9 +15,9 @@ struct MainTabView: View {
                         Label("Habits", systemImage: "list.bullet.rectangle")
                     }
 
-                NavigationStack { HealthInfoView() }
+                NavigationStack { InsightsScreen() }
                     .tabItem {
-                        Label("Health", systemImage: "heart.fill")
+                        Label("Louie", systemImage: "dog.fill")
                     }
 
                 NavigationStack { NutritionView() }
@@ -48,9 +48,9 @@ struct MainTabView: View {
                     }
                     .navigationViewStyle(StackNavigationViewStyle())
 
-                NavigationView { HealthInfoView() }
+                NavigationView { InsightsScreen() }
                     .tabItem {
-                        Label("Health", systemImage: "heart.fill")
+                        Label("Louie", systemImage: "dog.fill")
                     }
                     .navigationViewStyle(StackNavigationViewStyle())
 

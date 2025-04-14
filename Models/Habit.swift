@@ -1,12 +1,13 @@
 import SwiftUI
 
-struct Habit: Identifiable, Codable {
-    var id: UUID = UUID()
+// MARK: - Habit Data Model
+// Make struct conform to Equatable
+public struct Habit: Identifiable, Codable, Equatable {
+    public let id: UUID
     var title: String
     var description: String = ""
     var reminderTime: Date
     var completed: Bool = false
-    var progress: [Int: Bool] = [:]
     var frequency: HabitFrequency = .daily
     var customDays: [Int] = [] // 1 = Monday, 2 = Tuesday, etc.
     var emoji: String = "📝" // Default emoji
@@ -14,6 +15,20 @@ struct Habit: Identifiable, Codable {
     
     // Mood tracking
     var moodEntries: [Date: MoodEntry] = [:]
+
+    // Add Equatable conformance
+    public static func == (lhs: Habit, rhs: Habit) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.title == rhs.title &&
+               lhs.description == rhs.description &&
+               lhs.reminderTime == rhs.reminderTime && // Might need tolerance for Date comparison
+               lhs.frequency == rhs.frequency &&
+               lhs.customDays == rhs.customDays &&
+               lhs.emoji == rhs.emoji &&
+               lhs.streak == rhs.streak &&
+               lhs.completed == rhs.completed &&
+               lhs.moodEntries == rhs.moodEntries // Dictionary comparison works if MoodEntry is Equatable
+    }
 }
 
 // Enum for tracking user mood
@@ -34,10 +49,18 @@ enum Mood: String, Codable {
 }
 
 // Structure to store mood and reflection
-struct MoodEntry: Codable {
+public struct MoodEntry: Identifiable, Codable, Equatable {
+    public let id = UUID()
     var mood: Mood
     var reflection: String
     var date: Date
+
+    // Add Equatable conformance
+    public static func == (lhs: MoodEntry, rhs: MoodEntry) -> Bool {
+        return lhs.mood == rhs.mood &&
+               lhs.reflection == rhs.reflection &&
+               lhs.date == rhs.date
+    }
 }
 
 enum HabitFrequency: String, Codable {

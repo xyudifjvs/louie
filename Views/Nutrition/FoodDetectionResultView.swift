@@ -217,25 +217,6 @@ struct FoodDetectionResultView: View {
                 .padding(.vertical, 20)
                 .padding(.horizontal)
             }
-            
-            // Loading overlay
-            if isAnalyzing {
-                Rectangle()
-                    .fill(Color.black.opacity(0.7))
-                    .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        VStack {
-                            Text("Processing selected foods...")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.5)
-                                .padding()
-                        }
-                    )
-            }
         }
         .navigationBarBackButtonHidden(true)
         .navigationBarItems(leading: Button(action: {
@@ -325,26 +306,20 @@ struct FoodDetectionResultView: View {
     
     // Proceed to the confirmation step with selected items
     private func proceedToConfirmation() {
-        isAnalyzing = true
-        
-        // Use the NutritionService to get nutrition data for the selected labels
+        // Remove any loading state and directly get nutrition data
         NutritionService.shared.getNutritionInfo(for: selectedLabels) { result in
             DispatchQueue.main.async {
-                isAnalyzing = false
-                
                 switch result {
                 case .success(let foodItems):
-                    // Update the draft meal in the view model with these food items
-                    self.viewModel.updateDraftMeal(foods: foodItems)
+                    // Use AIFoodAnalysisService to create a meal entry with the food items
+                    let mealEntry = AIFoodAnalysisService.shared.createMealEntry(
+                        from: foodItems,
+                        image: self.foodImage,
+                        isManuallyAdjusted: true
+                    )
                     
-                    // Get the updated draft meal
-                    if let updatedMeal = self.viewModel.getCurrentDraftMeal() {
-                        // Present the confirmation view
-                        self.showFoodLogConfirmation(mealEntry: updatedMeal)
-                    } else {
-                        self.errorMessage = "Failed to update draft meal"
-                        self.showingError = true
-                    }
+                    // Present the confirmation view immediately
+                    self.showFoodLogConfirmation(mealEntry: mealEntry)
                     
                 case .failure(let error):
                     self.errorMessage = "Failed to get nutrition data: \(error.description)"

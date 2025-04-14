@@ -47,7 +47,7 @@ struct GoalsEditorView: View {
                     
                     // Goals input form
                     VStack(spacing: 16) {
-                        goalsFormRow(title: "Calories", value: $caloriesInput, unit: "kcal", icon: "flame.fill", color: .red)
+                        goalsFormRow(title: "Calories", value: $caloriesInput, unit: "cal", icon: "flame.fill", color: .red)
                         goalsFormRow(title: "Protein", value: $proteinInput, unit: "g", icon: "tortoise.fill", color: .blue)
                         goalsFormRow(title: "Carbs", value: $carbsInput, unit: "g", icon: "leaf.fill", color: .green)
                         goalsFormRow(title: "Fat", value: $fatInput, unit: "g", icon: "circle.hexagongrid.fill", color: .orange)

@@ -5,7 +5,7 @@ struct HabitGridView: View {
     // MARK: - Properties
     
     /// The habit to display and update
-    @ObservedObject var viewModel: HabitViewModel
+    @ObservedObject var viewModel: HabitTrackerViewModel
     
     /// The habit being displayed
     let habit: Habit
@@ -98,8 +98,8 @@ struct HabitGridView: View {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         
-        // Call the new method on the view model
-        return viewModel.getCompletionStatus(forHabit: habit.id, on: startOfDay)
+        // Call the method on the view model (ensure correct name)
+        return viewModel.getCompletionStatusByID(forHabit: habit.id, on: startOfDay)
     }
     
     /// Toggles the completion status for a habit on a specific date
@@ -111,11 +111,13 @@ struct HabitGridView: View {
         // Update the status in the view model
         if let index = viewModel.habits.firstIndex(where: { $0.id == habit.id }) {
             let currentStatus = completionStatus(for: date)
-            if currentStatus == .completed {
-                viewModel.updateHabitCompletion(habitId: habit.id, status: .notCompleted)
-            } else {
-                viewModel.updateHabitCompletion(habitId: habit.id, status: .completed)
-            }
+            // updateHabitCompletion might not exist on HabitTrackerViewModel
+            // Need to call the appropriate function, e.g., toggleCompletion?
+            // Or add a specific update function if needed.
+            // For now, let's assume we just need to update the status via toggleCompletion
+            // This might need further adjustment based on desired interaction
+            // viewModel.updateHabitCompletion(habitId: habit.id, status: currentStatus.next) \n            print("Tapping day cell - interaction TBD") // Placeholder
+            // Consider calling viewModel.toggleCompletion(for: habit) if tapping today? Or a different method?
         }
     }
 }

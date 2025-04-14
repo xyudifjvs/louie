@@ -328,10 +328,7 @@ public struct HabitStatsView: View {
     
     // Calculate completion rate for each month
     func getHabitStatusForMonth(_ date: Date) -> CompletionStatus {
-        if let habitIndex = viewModel.habits.firstIndex(where: { $0.id == habit.id }) {
-            return viewModel.getCompletionStatus(forHabit: habitIndex, on: date)
-        }
-        return .noData
+        return viewModel.getCompletionStatusByID(forHabit: habit.id, on: date)
     }
 }
 

@@ -3,7 +3,7 @@ import SwiftUI
 // Weekday progress view (single day cell)
 struct WeekdayProgressView: View {
     let dayOffset: Int
-    let habit: Habit
+    let status: CompletionStatus
     
     var body: some View {
         VStack(spacing: 2) {
@@ -26,24 +26,12 @@ struct WeekdayProgressView: View {
         let calendar = Calendar.current
         let date = calendar.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "E"
         return formatter.string(from: date).prefix(1).uppercased()
     }
     
     private var dayColor: Color {
-        let calendar = Calendar.current
-        guard let date = calendar.date(byAdding: .day, value: dayOffset, to: Date()) else {
-            return Color.gray.opacity(0.3)
-        }
-        
-        let day = calendar.component(.day, from: date)
-        
-        // Check if habit was completed on this day
-        if let isCompleted = habit.progress[day] {
-            return isCompleted ? Color.green.opacity(0.9) : Color.red.opacity(0.8)
-        }
-        
-        // No data for this day
-        return Color.gray.opacity(0.3)
+        return status.color
     }
 } 

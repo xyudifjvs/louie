@@ -6,7 +6,6 @@
 
 import SwiftUI
 import Foundation
-import AVFoundation
 
 // MARK: - Nutrition Module
 struct NutritionView: View {
@@ -16,6 +15,7 @@ struct NutritionView: View {
     @State private var showNutritionFlow = false
     @State private var processedImage: UIImage?
     @State private var detectedLabels: [FoodLabelAnnotation] = []
+    @State private var showingMonthlyView = false
     
     var body: some View {
         ZStack {
@@ -29,119 +29,11 @@ struct NutritionView: View {
                 VStack(spacing: 0) {
                     // Top 50% - Today's Meals section
                     VStack(spacing: 16) {
-                        // Header with title and action buttons
-                        ZStack {
-                            // Centered title
-                            Text("Nutrition")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(.white)
-                            
-                            // Left aligned buttons
-                            HStack {
-                                Button(action: {
-                                    // Calendar button action (to be implemented later)
-                                }) {
-                                    Image(systemName: "calendar")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                }
-                                
-                                Spacer()
-                            }
-                            
-                            // Right aligned buttons
-                            HStack {
-                                Spacer()
-                                
-                                Button(action: {
-                                    checkCameraPermissions()
-                                }) {
-                                    Image(systemName: "camera")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                }
-                                
-                                Button(action: {
-                                    // Barcode button action (to be implemented later)
-                                }) {
-                                    Image(systemName: "barcode.viewfinder")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
+                        // Refactored Header View
+                        headerView
                         
-                        // Today's Meals Container
-                        VStack(spacing: 16) {
-                            // Container header
-                            HStack {
-                                Text("Today's Meals")
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal)
-                            .padding(.top, 12)
-                            
-                            // Meal cards for today
-                            if viewModel.isLoading {
-                                Spacer()
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(1.5)
-                                Spacer()
-                            } else if viewModel.todayMeals.isEmpty {
-                                Spacer()
-                                VStack(spacing: 16) {
-                                    Image(systemName: "leaf.fill")
-                                        .font(.system(size: 50))
-                                        .foregroundColor(.white.opacity(0.6))
-                                    
-                                    Text("No meals logged today")
-                                        .font(.headline)
-                                        .foregroundColor(.white)
-                                    
-                                    Text("Take a photo of your meal to get started")
-                                        .font(.subheadline)
-                                        .foregroundColor(.white.opacity(0.8))
-                                        .multilineTextAlignment(.center)
-                                        .padding(.horizontal)
-                                }
-                                Spacer()
-                            } else {
-                                // Use List with swipeActions for a native swipe-to-delete experience
-                                List {
-                                    ForEach(viewModel.todayMeals) { meal in
-                                        MealCardView(meal: meal)
-                                            .listRowBackground(Color.clear)
-                                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                                Button(role: .destructive) {
-                                                    withAnimation {
-                                                        viewModel.deleteMeal(meal)
-                                                    }
-                                                } label: {
-                                                    Label("Delete", systemImage: "trash")
-                                                }
-                                            }
-                                    }
-                                    .listRowSeparator(.hidden)
-                                }
-                                .listStyle(PlainListStyle())
-                                .background(Color.clear)
-                                .scrollContentBackground(.hidden)
-                            }
-                        }
-                        .frame(minHeight: geometry.size.height * 0.3)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.black.opacity(0.2))
-                        )
-                        .padding(.horizontal)
+                        // Refactored Today's Meals Section
+                        todaysMealsSection(geometry: geometry)
                         
                         Spacer() // Push content to the top
                     }
@@ -162,18 +54,25 @@ struct NutritionView: View {
             CameraView(viewModel: viewModel, showCameraView: $showCameraView)
         })
         .fullScreenCover(isPresented: $showNutritionFlow, content: {
-            if let image = processedImage {
-                // Start a new meal logging session with the captured image
-                let _ = viewModel.startMealLoggingSession(with: image)
-                
-                NutritionAnimatedFlowView(
-                    viewModel: viewModel,
-                    showView: $showNutritionFlow,
-                    foodImage: image,
-                    detectedLabels: detectedLabels
-                )
-            }
+            NutritionAnimatedFlowView(
+                viewModel: viewModel,
+                showView: $showNutritionFlow,
+                foodImage: processedImage ?? UIImage(),
+                detectedLabels: detectedLabels
+            )
         })
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DismissAllMealViews"))) { _ in
+            // When we receive the notification, immediately set all state variables to false
+            // This prevents any view from reappearing during dismissal
+            showCameraView = false
+            showNutritionFlow = false
+            
+            // Small delay before refreshing meals to ensure views are dismissed
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                // Force refresh the meals list to show the new meal
+                viewModel.fetchMeals()
+            }
+        }
         .alert("Camera Permission Required", isPresented: $showPermissionAlert) {
             Button("Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -187,6 +86,159 @@ struct NutritionView: View {
         .onAppear {
             viewModel.fetchMeals()
         }
+        .sheet(isPresented: $showingMonthlyView) {
+            NutritionMonthlyDataView()
+        }
+    }
+    
+    // MARK: - Subviews (Refactored)
+    
+    // Header View
+    private var headerView: some View {
+        ZStack {
+            // Centered title
+            Text("Nutrition")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(.white)
+            
+            // Left aligned buttons
+            HStack {
+                Button(action: {
+                    showingMonthlyView = true
+                }) {
+                    Image(systemName: "calendar")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                }
+                
+                Spacer()
+            }
+            
+            // Right aligned buttons
+            HStack {
+                Spacer()
+                
+                Button(action: {
+                    // Barcode scanner button action (to be implemented later)
+                }) {
+                    Image(systemName: "barcode.viewfinder")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                }
+                
+                Button(action: {
+                    showCameraView = true
+                }) {
+                    Image(systemName: "camera.fill")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    // Today's Meals Section View Builder Function
+    private func todaysMealsSection(geometry: GeometryProxy) -> some View {
+        VStack(spacing: 16) {
+            // Container header
+            HStack {
+                Text("Today's Meals")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.top, 12)
+            
+            // Meal cards for today
+            if viewModel.isLoading {
+                Spacer()
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.5)
+                Spacer()
+            } else if viewModel.todayMeals.isEmpty {
+                Spacer()
+                VStack(spacing: 16) {
+                    Image(systemName: "leaf.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.white.opacity(0.6))
+                    
+                    Text("No meals logged today")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Text("Take a photo of your meal to get started")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+                Spacer()
+            } else {
+                // Use List with swipeActions for a native swipe-to-delete experience
+                List {
+                    ForEach(viewModel.todayMeals) { meal in
+                        VStack(alignment: .leading, spacing: 0) {
+                            MealCardView(meal: meal)
+                                .environmentObject(viewModel) // Pass environment object
+                                // Add overlay for delete button when expanded
+                                .overlay(alignment: .bottomTrailing) {
+                                    if viewModel.expandedMealId == meal.id {
+                                        Button {
+                                            withAnimation {
+                                                viewModel.deleteMeal(meal)
+                                            }
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.title2)
+                                                .foregroundColor(.red)
+                                                .background(Circle().fill(.white.opacity(0.8))) // Background for visibility
+                                        }
+                                        .padding(4) // Padding around the button
+                                        .transition(.opacity.combined(with: .scale))
+                                    }
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        withAnimation {
+                                            viewModel.deleteMeal(meal)
+                                        }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .onTapGesture {
+                                    viewModel.toggleMealExpansion(mealId: meal.id)
+                                }
+                            
+                            // Conditionally show Macro Detail View
+                            if viewModel.expandedMealId == meal.id {
+                                MealMacroDataView(macros: meal.macronutrients)
+                                    .padding(.top, 8)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+                                    .zIndex(-1)
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    }
+                    .listRowSeparator(.hidden)
+                }
+                .listStyle(PlainListStyle())
+                .background(Color.clear)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .frame(minHeight: geometry.size.height * 0.3) // Use geometry parameter here
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.black.opacity(0.2))
+        )
+        .padding(.horizontal)
     }
     
     private var todayAverageScore: Int {
@@ -194,31 +246,6 @@ struct NutritionView: View {
         let todayMeals = viewModel.meals.filter { Calendar.current.isDate($0.timestamp, inSameDayAs: today) }
         guard !todayMeals.isEmpty else { return 0 }
         return todayMeals.reduce(0) { $0 + $1.nutritionScore } / todayMeals.count
-    }
-    
-    private func checkCameraPermissions() {
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            // Camera access already granted, show camera view
-            showCameraView = true
-        case .notDetermined:
-            // Request camera access
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                DispatchQueue.main.async {
-                    if granted {
-                        self.showCameraView = true
-                    } else {
-                        self.showPermissionAlert = true
-                    }
-                }
-            }
-        case .denied, .restricted:
-            // Camera access was denied or restricted
-            showPermissionAlert = true
-        @unknown default:
-            // Handle future cases
-            showPermissionAlert = true
-        }
     }
 }
 
@@ -270,96 +297,57 @@ extension MealEntry {
     }
 }
 
-// MARK: - Card View
+// MARK: - Meal Card View (Defined Externally Now)
+/* // Remove this duplicate definition
 struct MealCardView: View {
     let meal: MealEntry
     
     var body: some View {
-        // Use native .swipeActions for better scrolling compatibility
-        HStack(spacing: 15) {
-            // Meal image
-            if let imageData = meal.imageData, let uiImage = UIImage(data: imageData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 80, height: 80)
-                    .cornerRadius(10)
-            } else {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 30))
-                            .foregroundColor(.white.opacity(0.7))
-                    )
-            }
-            
-            // Meal info
+        HStack(alignment: .top) {
+            // Placeholder for image - replace with actual image loading
+            Image(systemName: "photo.fill")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 60, height: 60)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .foregroundColor(.gray.opacity(0.5))
+                .background(Color.black.opacity(0.2))
+                .cornerRadius(8)
+
             VStack(alignment: .leading, spacing: 6) {
-                // Primary food name
-                Text(meal.primaryFoodItem)
-                    .font(.headline)
-                    .foregroundColor(.white)
+                HStack {
+                    Text(meal.primaryFoodItem)
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(meal.timestamp, style: .time)
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.7))
+                }
                 
-                // Food items - without serving size info
-                Text(foodItemsText)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
-                    .lineLimit(2)
+                HStack {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                        .font(.caption)
+                    Text("Score: \(meal.nutritionScore)")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.9))
+                }
                 
-                // Time
-                Text(formattedTime)
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.5))
-            }
-            
-            Spacer()
-            
-            // Circular nutrition score
-            ZStack {
-                Circle()
-                    .fill(scoreColor.opacity(0.3))
-                    .frame(width: 42, height: 42)
-                
-                Text("\(meal.nutritionScore)")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(scoreColor)
+                if let notes = meal.userNotes, !notes.isEmpty {
+                    Text(notes)
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(1)
+                }
             }
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.3))
-        )
-    }
-    
-    private var formattedTime: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter.string(from: meal.timestamp)
-    }
-    
-    private var foodItemsText: String {
-        if meal.foods.isEmpty {
-            return "No food items recorded"
-        } else if meal.foods.count == 1 {
-            return "\(meal.foods.count) food item"
-        } else {
-            return "\(meal.foods.count) food items"
-        }
-    }
-    
-    private var scoreColor: Color {
-        if meal.nutritionScore >= 80 {
-            return .green
-        } else if meal.nutritionScore >= 60 {
-            return .yellow
-        } else if meal.nutritionScore >= 40 {
-            return .orange
-        } else {
-            return .red
-        }
+        .background(Color.black.opacity(0.2))
+        .cornerRadius(12)
     }
 }
+*/
+
+// MARK: - Preview

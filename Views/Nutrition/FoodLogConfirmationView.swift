@@ -118,7 +118,7 @@ struct FoodLogConfirmationView: View {
                         }
                         
                         Button(action: saveMeal) {
-                            Text("Save")
+                            Text("Log Meal")
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                                 .padding(.vertical, 12)
@@ -173,15 +173,30 @@ struct FoodLogConfirmationView: View {
     private func saveMeal() {
         isSaving = true
         
-        // Finalize the draft meal with user notes
-        viewModel.finalizeDraftMeal(with: userNotes.isEmpty ? nil : userNotes)
+        // Create a copy of the meal entry with the user notes
+        var updatedMeal = mealEntry
+        updatedMeal.userNotes = userNotes.isEmpty ? nil : userNotes
+        
+        // Save to CloudKit via the view model
+        viewModel.saveMeal(updatedMeal)
+        
+        // Add haptic feedback
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
         
         // Wait a moment for visual feedback
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            isSaving = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            // First update local state
+            self.isSaving = false
             
-            // Dismiss this view - the previous views will auto-dismiss through the onDismiss handler
-            presentationMode.wrappedValue.dismiss()
+            // Then dismiss this view
+            self.presentationMode.wrappedValue.dismiss()
+            
+            // Finally post notification to dismiss all other views
+            // Small delay to ensure our view is dismissed first
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                NotificationCenter.default.post(name: Notification.Name("DismissAllMealViews"), object: nil)
+            }
         }
     }
     

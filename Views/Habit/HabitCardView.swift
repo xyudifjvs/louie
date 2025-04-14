@@ -112,9 +112,16 @@ struct HabitCardView: View {
                         // Larger weekly progress view
                         HStack(spacing: 8) {
                             ForEach(-6...0, id: \.self) { dayOffset in
+                                // Calculate the date for this offset
+                                let calendar = Calendar.current
+                                let dateForOffset = calendar.date(byAdding: .day, value: dayOffset, to: Date()) ?? Date()
+
+                                // Get the status from the ViewModel
+                                let status = viewModel.getCompletionStatusByID(forHabit: habit.id, on: dateForOffset)
+
                                 WeekdayProgressView(
                                     dayOffset: dayOffset,
-                                    habit: habit
+                                    status: status
                                 )
                                 .frame(width: 32, height: 32)
                             }

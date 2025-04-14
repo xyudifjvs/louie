@@ -75,8 +75,26 @@ struct LouieApp: App {
             // Use CloudKitManager's debug methods
             self.cloudKitManager.debugDatabaseInfo {
                 // After checking database info, try to create a test habit
-                self.createTestHabit()
+                // self.createTestHabit() // Comment out automatic test habit creation
+                print("[CloudKitDebug] Skipping automatic test habit creation.") // Add log
                 self.hasCreatedTestData = true
+
+                // --- TEMPORARY: Count Habit Records --- 
+                print("[CloudKitDebug] Counting total Habit records...")
+                self.cloudKitManager.countRecords(ofType: RecordType.habit) { result in // Use RecordType constant if accessible, else "Habit"
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success(let count):
+                            print("----------------------------------------------------")
+                            print("[CloudKitDebug] TOTAL HABIT RECORDS FOUND: \(count)")
+                            print("----------------------------------------------------")
+                        case .failure(let error):
+                            print("[CloudKitError] FAILED TO COUNT HABIT RECORDS: \(error.localizedDescription)")
+                        }
+                    }
+                }
+                // --- END TEMPORARY --- 
+
             }
         }
     }

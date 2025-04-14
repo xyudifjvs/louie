@@ -14,6 +14,12 @@
 import SwiftUI
 import CloudKit
 
+// MARK: - Date Display Mode
+enum DateDisplayMode {
+    case timeOfDay
+    case dayOfWeek
+}
+
 // MARK: - Food Label Annotation
 public struct FoodLabelAnnotation: Identifiable, Codable {
     public var id = UUID()
@@ -90,12 +96,11 @@ public struct MealEntry: Identifiable, Codable {
     public var micronutrients: MicroData
     public var userNotes: String?
     public var isManuallyAdjusted: Bool
-    public var isDraft: Bool
     
     // CloudKit record ID for syncing
     public var recordID: CKRecord.ID?
     
-    public init(id: UUID = UUID(), timestamp: Date = Date(), imageData: Data? = nil, imageURL: String? = nil, foods: [FoodItem] = [], nutritionScore: Int = 0, macronutrients: MacroData = MacroData(protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0), micronutrients: MicroData = MicroData(), userNotes: String? = nil, isManuallyAdjusted: Bool = false, isDraft: Bool = false, recordID: CKRecord.ID? = nil) {
+    public init(id: UUID = UUID(), timestamp: Date = Date(), imageData: Data? = nil, imageURL: String? = nil, foods: [FoodItem] = [], nutritionScore: Int = 0, macronutrients: MacroData = MacroData(protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0), micronutrients: MicroData = MicroData(), userNotes: String? = nil, isManuallyAdjusted: Bool = false, recordID: CKRecord.ID? = nil) {
         self.id = id
         self.timestamp = timestamp
         self.imageData = imageData
@@ -106,12 +111,11 @@ public struct MealEntry: Identifiable, Codable {
         self.micronutrients = micronutrients
         self.userNotes = userNotes
         self.isManuallyAdjusted = isManuallyAdjusted
-        self.isDraft = isDraft
         self.recordID = recordID
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, timestamp, imageURL, foods, nutritionScore, macronutrients, micronutrients, userNotes, isManuallyAdjusted, isDraft
+        case id, timestamp, imageURL, foods, nutritionScore, macronutrients, micronutrients, userNotes, isManuallyAdjusted
         // Note: imageData and recordID are handled separately
     }
 }

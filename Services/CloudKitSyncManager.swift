@@ -477,7 +477,6 @@ extension MealEntry: CloudKitRecord {
         record["micronutrients"] = try? JSONEncoder().encode(self.micronutrients)
         record["userNotes"] = self.userNotes
         record["isManuallyAdjusted"] = self.isManuallyAdjusted
-        record["isDraft"] = self.isDraft
         
         if let imageData = self.imageData {
             let temporaryDirectory = FileManager.default.temporaryDirectory
@@ -540,7 +539,6 @@ extension MealEntry: CloudKitRecord {
             micronutrients: micronutrients,
             userNotes: record["userNotes"] as? String,
             isManuallyAdjusted: record["isManuallyAdjusted"] as? Bool ?? false,
-            isDraft: record["isDraft"] as? Bool ?? false,
             recordID: record.recordID
         )
     }

@@ -4,7 +4,6 @@ import SwiftUI
 struct HabitProgressCard: View {
     let habit: Habit
     let selectedMonth: Date
-    @ObservedObject var viewModel: HabitViewModel
     @EnvironmentObject var habitTrackerViewModel: HabitTrackerViewModel
     
     var body: some View {
@@ -22,7 +21,7 @@ struct HabitProgressCard: View {
                 
                 // Use the HabitGridView instead
                 HabitGridView(
-                    viewModel: viewModel,
+                    viewModel: habitTrackerViewModel,
                     habit: habit,
                     month: selectedMonth
                 )

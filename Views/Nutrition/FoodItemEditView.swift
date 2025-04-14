@@ -166,13 +166,52 @@ struct FoodItemEditView: View {
     }
     
     private func saveMeal() {
-        // Pass updated food items back to parent view if callback is provided
+        // Pass updated food items back to parent view via callback
         onSave?(foodItems)
         
-        // Update the draft meal with the edited food items
-        viewModel.updateDraftMeal(foods: foodItems)
+        /* // Remove all meal creation and saving logic from this view
+        // Calculate nutrition score
+        let nutritionScore = viewModel.calculateNutritionScore(foods: foodItems)
         
-        // Dismiss the view
+        // Calculate total macros
+        let totalMacros = foodItems.reduce(MacroData(protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0)) { result, food in
+            return MacroData(
+                protein: result.protein + food.macros.protein,
+                carbs: result.carbs + food.macros.carbs,
+                fat: result.fat + food.macros.fat,
+                fiber: result.fiber + food.macros.fiber,
+                sugar: result.sugar + food.macros.sugar
+            )
+        }
+        
+        // Create image data
+        let imageData = image.jpegData(compressionQuality: 0.7)
+        
+        // Create or update meal entry
+        if var existingMeal = meal {
+            // Update existing meal
+            existingMeal.foods = foodItems
+            existingMeal.nutritionScore = nutritionScore
+            existingMeal.macronutrients = totalMacros
+            // Make sure to preserve other relevant fields if needed
+            viewModel.saveMeal(existingMeal)
+        } else {
+            // Create new meal
+            let newMeal = MealEntry(
+                timestamp: Date(),
+                imageData: imageData,
+                imageURL: nil,
+                foods: foodItems,
+                nutritionScore: nutritionScore,
+                macronutrients: totalMacros,
+                micronutrients: MicroData(), // Assuming default is okay here
+                userNotes: nil // Assuming no user notes from this view
+            )
+            viewModel.saveMeal(newMeal)
+        }
+        */
+        
+        // Dismiss the sheet
         presentationMode.wrappedValue.dismiss()
     }
 }
