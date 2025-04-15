@@ -32,9 +32,10 @@ struct SpeechBubbleContainer<Content: View>: View {
                 .offset(x: 50, y: 15) // Adjust offset for connection
                 .zIndex(1) // Ensure tail overlaps bubble slightly if needed
 
-            // Actual chat content placed on top
+            // Actual chat content placed on top and clipped to the bubble shape
             content
                 .padding(EdgeInsets(top: 20, leading: 20, bottom: 35, trailing: 20)) // Inner padding
+                .clipShape(RoundedRectangle(cornerRadius: 30))
         }
     }
 }
@@ -117,10 +118,10 @@ struct ChatStep {
     let nextStepLogic: (Any?) -> ChatStepType // Determines the next step based on current response
 }
 
-// Existing Message Struct
+// Existing Message Struct - Make text mutable for typing effect
 struct Message: Identifiable {
-    let id = UUID()
-    let text: String
+    let id = UUID() // Restore ID property
+    var text: String // Make text mutable
     let fromLouie: Bool
 }
 
@@ -349,7 +350,7 @@ struct InsightsScreen: View {
             responseType: .tagGrid(options: [
                 TagOption(text: "Late Screen Time", value: "screen_time"),
                 TagOption(text: "Racing Thoughts", value: "racing_thoughts"),
-                TagOption(text: "Body Discomfort", value: "discomfort"),
+                TagOption(text: "Discomfort", value: "discomfort"),
                 TagOption(text: "Bad Dreams", value: "bad_dreams"),
                 TagOption(text: "Substance Use", value: "substance_use"),
             ], allowsMultiple: true),
@@ -408,7 +409,7 @@ struct InsightsScreen: View {
     @State private var currentStepId: ChatStepType = .greeting
     @State private var conversation: [Message] = []
     @State private var isLouieTalking: Bool = true
-    @State private var showUserInputControls: Bool = false // Renamed from showUserOptions
+    @State private var showUserInputControls: Bool = false
     
     // -- User Input State (Temporary for current step) --
     @State private var currentSliderValue: Double = 5.0
@@ -446,39 +447,78 @@ struct InsightsScreen: View {
                 VStack {
                     Spacer()
                     
-                    // Use the new SpeechBubbleContainer with content inside
                     SpeechBubbleContainer {
-                        ScrollView {
+                        if conversation.count < 3 {
+                            // For short conversations, use a non-scrollable bottom-aligned VStack
                             VStack(alignment: .leading, spacing: 10) {
+                                Spacer(minLength: 0) // Push messages to the bottom
                                 ForEach(conversation) { message in
                                     Text(message.text)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 8)
-                                        .background(message.fromLouie ? Color.blue.opacity(0.4) : Color.green.opacity(0.4)) // Example styling
+                                        .background(message.fromLouie ? Color.blue.opacity(0.4) : Color.green.opacity(0.4))
                                         .cornerRadius(15)
                                         .foregroundColor(.white)
                                         .frame(maxWidth: .infinity, alignment: message.fromLouie ? .leading : .trailing)
+                                        .id(message.id)
+                                }
+                                // Invisible scroll anchor (optional, kept for consistency)
+                                Color.clear
+                                    .frame(height: 1)
+                                    .id("scrollAnchor")
+                            }
+                            .frame(maxHeight: .infinity, alignment: .bottom)
+                            .padding(.top, 5)
+                            .padding(.horizontal, 0)
+                            .padding(.bottom, 20)
+                            .frame(height: 300)
+                        } else {
+                            // For longer conversations, use the scrollable version with auto-scroll logic
+                            ScrollViewReader { proxy in
+                                ScrollView {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Spacer(minLength: 0) // Push content to the bottom when possible
+                                        ForEach(conversation) { message in
+                                            Text(message.text)
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 8)
+                                                .background(message.fromLouie ? Color.blue.opacity(0.4) : Color.green.opacity(0.4))
+                                                .cornerRadius(15)
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity, alignment: message.fromLouie ? .leading : .trailing)
+                                                .id(message.id)
+                                        }
+                                        // Invisible scroll anchor
+                                        Color.clear
+                                            .frame(height: 1)
+                                            .id("scrollAnchor")
+                                    }
+                                    .frame(maxHeight: .infinity, alignment: .bottom)
+                                    .padding(.top, 5)
+                                    .padding(.horizontal, 0)
+                                    .padding(.bottom, 20)
+                                }
+                                .onChange(of: conversation.last?.text) { _ in
+                                    withAnimation {
+                                        DispatchQueue.main.async {
+                                            DispatchQueue.main.async {
+                                                proxy.scrollTo("scrollAnchor", anchor: .bottom)
+                                            }
+                                        }
+                                    }
+                                }
+                                .onChange(of: showUserInputControls) { becameVisible in
+                                    if becameVisible {
+                                        DispatchQueue.main.async {
+                                            DispatchQueue.main.async {
+                                                proxy.scrollTo("scrollAnchor", anchor: .bottom)
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                            .padding(.vertical, 5) // Padding inside ScrollView before content hits edges
+                            .frame(height: 300)
                         }
-                        // Give the ScrollView a flexible frame within the bubble
-                        .frame(minHeight: 50, maxHeight: geometry.size.height * 0.4) 
-
-                        // User Response Area (Moved Inside Bubble) - REMOVE FROM HERE
-                        /*
-                        if showUserOptions {
-                            Button("Ready!") {
-                                // Call the response handler
-                                handleUserResponse(response: "Ready!")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.purple) // Example tint
-                            .padding(.top, 5) // Add some padding above the button
-                            .frame(maxWidth: .infinity, alignment: .trailing) // Align button to the right
-                            .transition(.scale.combined(with: .opacity)) // Add animation
-                        }
-                        */
                     }
                     .padding(.horizontal, 20) // Padding around the bubble
                     // Use a smaller fixed bottom padding to reduce gap above Louie
@@ -487,14 +527,8 @@ struct InsightsScreen: View {
                     // User Response Area (Dynamic Input Controls)
                     if showUserInputControls, let step = currentChatStep {
                         VStack {
-                            // Dynamically display the correct input view
                             inputView(for: step)
-                            
-                            // Main action button ("Done" or "Ready!")
-                            Button(action: { 
-                                // Call the new processing function
-                                processUserInputAndProceed()
-                            }) {
+                            Button(action: { processUserInputAndProceed() }) {
                                 Text(buttonText(for: step))
                                     .font(.headline)
                                     .fontWeight(.bold)
@@ -504,11 +538,12 @@ struct InsightsScreen: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(.purple)
-                            .disabled(!isInputValid(for: step)) // Disable if needed
+                            .disabled(!isInputValid(for: step))
                             .padding(.horizontal, 20)
-                            .padding(.top, 5) // Space between input and button
+                            .padding(.top, 5)
                             .padding(.bottom, 10)
                         }
+                        .id("input-controls-vstack")
                         .transition(.scale.combined(with: .opacity))
                     }
 
@@ -516,15 +551,13 @@ struct InsightsScreen: View {
                     HStack {
                         Image(isLouieTalking ? "louie_talking" : "louie_listening") // Conditional image
                             .resizable()
-                            // .scaledToFit() // Removed
-                            .frame(width: 320, height: 320) // Restored fixed size
-                            .offset(x: -40) // Restored fixed offset
-                            .padding(.bottom, 20) // Restored padding
-                            .animation(.easeInOut(duration: 0.3), value: isLouieTalking) // Animate image change
+                            .scaledToFit()
+                        .frame(maxHeight: showUserInputControls ? geometry.size.height * 0.2 : 320)
+                            .offset(x: isLouieTalking ? -40 : -20, y: isLouieTalking ? 0 : -10)
+                            .padding(.bottom, 20)
+                            .animation(.easeInOut(duration: 0.3), value: isLouieTalking)
                         Spacer()
                     }
-                    // .frame(height: geometry.size.height * 0.3) // Removed frame on HStack
-                    // .padding(.bottom, -20) // Removed padding on HStack
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .padding(.top, 40) // Add padding to the top of the VStack
@@ -617,20 +650,64 @@ struct InsightsScreen: View {
         // Get the initial step definition
         guard let initialStep = Self.conversationFlow[.greeting] else { return }
         
-        // Add Louie's initial message
-        let initialMessage = Message(text: initialStep.louiePrompt(nil), fromLouie: true)
-        conversation.append(initialMessage)
-        
-        // Simulate Louie finishing talking and show user options
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { // Adjust delay as needed
-            withAnimation {
-                 isLouieTalking = false
-                 // Use pattern matching for enums with associated values
-                 if case .none = initialStep.responseType {}
-                 else { // If it's not .none
-                     showUserInputControls = true
-                 }
+        // Add Louie's initial message using the new typing effect logic
+        addAndTypeLouieMessage(text: initialStep.louiePrompt(nil)) {
+             // This completion block runs *after* typing finishes
+             // Schedule state update for showing next input (if any)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { // Short delay after typing initial message
+                withAnimation {
+                    // Determine the next step ID here, as the helper doesn't know
+                    let nextStepId = initialStep.nextStepLogic(nil) // Get the next step after greeting
+                    self.currentStepId = nextStepId
+                    self.resetInputStates() // Reset temporary fields
+                    isLouieTalking = false
+                    // Use pattern matching for enums with associated values
+                    if case .none = Self.conversationFlow[nextStepId]?.responseType {}
+                    else { // If it's not .none
+                        showUserInputControls = true
+                    }
+                }
             }
+        }
+    }
+
+    // Refactored function to add Louie's message and type it out
+    // Takes the text and an optional completion handler
+    func addAndTypeLouieMessage(text: String, completion: (() -> Void)? = nil) {
+        // Create the message instance without an ID
+        let placeholderMessage = Message(text: "", fromLouie: true)
+        // Get the automatically generated ID
+        let newMessageId = placeholderMessage.id
+
+        // Add placeholder immediately so it appears in the UI
+        withAnimation {
+            conversation.append(placeholderMessage)
+        }
+
+        Task { @MainActor in // Ensure updates run on the main thread
+            let words = text.split(separator: " ").map { String($0) }
+            var currentText = ""
+
+            // Find the index of the message we just added using the retrieved ID
+            guard let messageIndex = conversation.firstIndex(where: { $0.id == newMessageId }) else {
+                // If message disappears before typing starts, just stop
+                print("Warning: Message \(newMessageId) not found for typing.")
+                return
+            }
+
+            for word in words {
+                // Append word and space
+                currentText += (currentText.isEmpty ? "" : " ") + word
+
+                // Update the message text in the array
+                conversation[messageIndex].text = currentText
+
+                // Pause between words
+                try? await Task.sleep(for: .milliseconds(100)) // Adjust duration as needed
+            }
+
+            // Call the completion handler if provided, after typing is done
+            completion?()
         }
     }
 
@@ -638,7 +715,7 @@ struct InsightsScreen: View {
     func processUserInputAndProceed() {
         guard let currentStep = currentChatStep else { return }
 
-        // 1. Extract Data and Determine User Message Text
+        // 1. Extract Data and User Message Text
         var userInputData: Any? = nil
         var userMessageText: String? = nil
 
@@ -646,23 +723,24 @@ struct InsightsScreen: View {
             case .initialButton:
                 userMessageText = "Ready!"
                 userInputData = "Ready!" // Or nil, depending on if greeting needs data
-            case .slider: 
+            case .slider:
                 userInputData = currentSliderValue
                 userMessageText = String(format: "%.1f / 10", currentSliderValue) // Example format
-            case .emojiGrid: 
+            case .emojiGrid(let options):
                 userInputData = currentSelectedEmojiOption?.value // Store the value
                 userMessageText = currentSelectedEmojiOption?.label // Display the label
             case .tagGrid(let options, let allowsMultiple):
-                // Use options directly from the case, type is [TagOption]
+                 // Use the options from the specific step instance
                 let selectedOptions = options.filter { currentSelectedTagIDs.contains($0.id) }
                 let values = selectedOptions.map { $0.value }
-                let labels = selectedOptions.map { $0.text }
+                let labels = selectedOptions.map { $0.text } // Get labels for user message
                 userInputData = values // Store array of values
                 if !allowsMultiple { userInputData = values.first } // Store single value if not multi-select
-            case .yesNo: 
+                userMessageText = labels.isEmpty ? nil : labels.joined(separator: ", ") // Display selected tags
+            case .yesNo:
                 userInputData = currentYesNoResponse
                 userMessageText = currentYesNoResponse == true ? "Yes" : (currentYesNoResponse == false ? "No" : nil)
-            case .textInput: 
+            case .textInput:
                 let trimmedText = currentTextResponse.trimmingCharacters(in: .whitespacesAndNewlines)
                 userInputData = trimmedText.isEmpty ? nil : trimmedText
                 userMessageText = trimmedText.isEmpty ? nil : trimmedText
@@ -675,6 +753,7 @@ struct InsightsScreen: View {
             showUserInputControls = false
         }
         if let text = userMessageText, !text.isEmpty {
+            // Use the standard memberwise init for user message
             let userMessage = Message(text: text, fromLouie: false)
             conversation.append(userMessage)
         }
@@ -689,43 +768,30 @@ struct InsightsScreen: View {
         
         // 4. Determine Next Step ID & Handle Symptom Loop
         var nextStepId: ChatStepType
-        var symptomLoopJustStarted = false
-        
         if currentStepId == .physicalSymptoms, let selectedSymptomValues = userInputData as? [String] {
-            // Find the actual TagOption objects selected
-            if let physicalSymptomOptions = Self.getOptions(from: currentStep.responseType) as? [TagOption] {
-                symptomOptionsToRate = physicalSymptomOptions.filter { selectedSymptomValues.contains($0.value) && $0.value != "none" }
-            } else {
-                symptomOptionsToRate = [] // Should not happen if setup is correct
-            }
+             // Find the actual TagOption objects selected
+             if case let .tagGrid(options, _) = currentStep.responseType { // Get options from the current step's response type
+                 symptomOptionsToRate = options.filter { selectedSymptomValues.contains($0.value) && $0.value != "none" }
+             } else {
+                 symptomOptionsToRate = [] // Should not happen if setup is correct
+                 print("Warning: Expected tagGrid for physicalSymptoms step.")
+             }
 
             if !symptomOptionsToRate.isEmpty {
                 currentSymptomIndex = 0
-                // Use the value from the first option to create the specific step ID
                 nextStepId = .symptomSeverity(symptom: symptomOptionsToRate[currentSymptomIndex].value)
-                symptomLoopJustStarted = true
-                 // REMOVE Storage here - value is not set yet
-                 // collectedCheckInData["severity_\(symptomsToRate[currentSymptomIndex])"] = currentSliderValue 
             } else {
-                // No valid symptoms selected (only "none" or empty)
                 nextStepId = currentStep.nextStepLogic(userInputData) // Should lead to .sleepHoursCheck
             }
-        } else if case .symptomSeverity(let currentSymptomValue) = currentStepId { // Use value here
-             // Store the severity rating for the *completed* symptom using its value
+        } else if case .symptomSeverity(let currentSymptomValue) = currentStepId {
              collectedCheckInData["severity_\(currentSymptomValue)"] = currentSliderValue
-
-            // Check against the count of stored options
-            // Increment index *before* checking for next step
             currentSymptomIndex += 1
             if currentSymptomIndex < symptomOptionsToRate.count {
-                 // Get the value for the next symptom ID
                 nextStepId = .symptomSeverity(symptom: symptomOptionsToRate[currentSymptomIndex].value)
             } else {
-                // Finished loop, get the step defined after severity loop in the template
                 nextStepId = currentStep.nextStepLogic(userInputData) // Should be .sleepHoursCheck
             }
         } else {
-            // General case: Use the defined logic
             nextStepId = currentStep.nextStepLogic(userInputData)
         }
 
@@ -733,54 +799,44 @@ struct InsightsScreen: View {
         // Fetch the step definition using the correct key
         var nextStepDefinition: ChatStep?
         if case .symptomSeverity = nextStepId {
-             // Use the placeholder key to get the template definition for severity steps
             nextStepDefinition = Self.conversationFlow[.symptomSeverity(symptom: "")]
         } else {
-            // Use the exact ID for all other steps
             nextStepDefinition = Self.conversationFlow[nextStepId]
         }
 
-        guard let nextStep = nextStepDefinition else { 
+        guard let nextStep = nextStepDefinition else {
             print("Error: Could not find next step definition for ID: \(nextStepId)")
-            // Attempt to gracefully recover or default, e.g., go to final step
-            // For now, just return to prevent crash
-            return 
+            return
         }
 
-        // Determine prompt (pass symptom TEXT if starting/in severity loop)
+        // Determine prompt arg
         var promptArg: Any? = nil
-        // Check based on the *next* step ID we are transitioning TO
         if case .symptomSeverity = nextStepId, currentSymptomIndex < symptomOptionsToRate.count {
-             // Pass the TEXT of the symptom we are about to ask for
             promptArg = symptomOptionsToRate[currentSymptomIndex].text
         }
-        // The check for symptomLoopJustStarted is implicitly handled by the above condition now
 
         let louieResponseText = nextStep.louiePrompt(promptArg)
 
-        // Add Louie's response message after a short delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            let louieMessage = Message(text: louieResponseText, fromLouie: true)
-            withAnimation { conversation.append(louieMessage) }
-
-            // Schedule state update for showing next input (if any)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                withAnimation {
-                    self.currentStepId = nextStepId // Update current step ID *here*
-                    self.resetInputStates() // Reset temporary fields
-                    isLouieTalking = false
-                    // Use pattern matching for enums with associated values
-                    if case .none = nextStep.responseType {}
-                    else { // If it's not .none
-                        showUserInputControls = true
-                    }
-                }
-                 // If final step, trigger save
-                 if nextStepId == .final {
-                     saveCheckInDataToCloudKit()
+        // Add Louie's response message using the typing effect helper
+         addAndTypeLouieMessage(text: louieResponseText) {
+              // This completion block runs *after* typing finishes
+             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { // Short delay after typing
+                 withAnimation {
+                     self.currentStepId = nextStepId // Update current step ID *here*
+                     self.resetInputStates() // Reset temporary fields
+                     isLouieTalking = false
+                     // Use pattern matching for enums with associated values
+                     if case .none = nextStep.responseType {}
+                     else { // If it's not .none
+                         showUserInputControls = true
+                     }
                  }
-            }
-        }
+                  // If final step, trigger save
+                  if nextStepId == .final {
+                      saveCheckInDataToCloudKit()
+                  }
+             }
+         }
     }
     
     // Helper function to get options from ResponseType enum case

@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "open1x(80x80).png",
+      "filename" : "1xopennoshadow.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "open2x(160x160).png",
+      "filename" : "2xopennoshadow.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "open3x(240x240).png",
+      "filename" : "3xopennoshadow.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

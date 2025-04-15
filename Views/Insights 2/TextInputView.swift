@@ -18,7 +18,7 @@ struct TextInputView: View {
             TextEditor(text: $text)
                 .scrollContentBackground(.hidden) // Use this to style background in ZStack
                 .padding(10)
-                .frame(minHeight: 80, maxHeight: 150) // Set a reasonable height range
+                .frame(minHeight: 60, maxHeight: 100) // Set a reasonable height range
                 .background(
                     RoundedRectangle(cornerRadius: 15)
                         .fill(Color.white.opacity(0.1))
