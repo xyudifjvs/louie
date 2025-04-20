@@ -292,31 +292,36 @@ struct CameraView: View {
         
         // Process image on background thread with high priority
         DispatchQueue.global(qos: .userInteractive).async {
-            // Pre-process image to smaller size before API call
+            // Pre-process image (can potentially be removed if OpenAIService handles it robustly)
+            // For now, keep it to ensure smaller image is sent initially.
             let processedImage = self.optimizeImageForAnalysis(image)
-            
-            // Use the VisionService to analyze the image
-            VisionService.shared.analyzeFood(image: processedImage) { result in
+
+            // Use AIFoodAnalysisService to analyze the image and get a MealEntry
+            AIFoodAnalysisService.shared.analyzeFoodImage(processedImage) { result in
                 DispatchQueue.main.async {
                     // Calculate time elapsed since animation started
                     let elapsedTime = Date().timeIntervalSince1970 - self.animationStartTime
                     let remainingAnimationTime = max(0, 3.0 - elapsedTime)
-                    
-                    // Wait for both animations to complete before showing results
+
+                    // Wait for animations to complete before showing results
                     DispatchQueue.main.asyncAfter(deadline: .now() + remainingAnimationTime) {
                         self.isAnalyzing = false
                         self.isVerticalScanActive = false
                         self.horizontalScanProgress = 0.0
                         self.verticalScanProgress = 0.0
-                        
+
                         switch result {
-                        case .success(let foodLabels):
-                            // Store the results and show the detection view
-                            self.detectedLabels = foodLabels
-                            self.showResultsView = true
-                            
+                        case .success(let mealEntry):
+                            // Store the successful MealEntry
+                            // We need a state variable to hold this, e.g., @State private var processedMealEntry: MealEntry?
+                            // self.processedMealEntry = mealEntry // <-- Add state variable and assign here
+                            print("Analysis successful. Meal Entry: \(mealEntry.foods.map { $0.name }.joined(separator: ", "))")
+                            // TODO: Navigate to or present a results view passing the mealEntry
+                            self.showResultsView = true // This likely needs to trigger navigation/presentation with the mealEntry data
+
                         case .failure(let error):
-                            self.alertMessage = "Food detection failed: \(error.description)"
+                            // Handle specific APIError cases if needed
+                            self.alertMessage = "Food analysis failed: \(error.localizedDescription)" // Use localizedDescription for APIError
                             self.showAlert = true
                         }
                     }

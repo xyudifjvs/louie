@@ -13,6 +13,7 @@
 		B533D66C2DACD7B4001D735D /* TagGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B533D66B2DACD7AB001D735D /* TagGridView.swift */; };
 		B533D66E2DACD810001D735D /* YesNoButtonsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B533D66D2DACD807001D735D /* YesNoButtonsView.swift */; };
 		B533D6702DACD81F001D735D /* TextInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B533D66F2DACD817001D735D /* TextInputView.swift */; };
+		B533D6752DB484F0001D735D /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B533D6742DB484E9001D735D /* OpenAIService.swift */; };
 		B59280482D9A3BB6009F1BAD /* NutritionAnimatedFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59280472D9A3BA9009F1BAD /* NutritionAnimatedFlowView.swift */; };
 		B592804A2D9A3BCB009F1BAD /* IngredientTagView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59280492D9A3BC2009F1BAD /* IngredientTagView.swift */; };
 		B592804C2D9A3BE7009F1BAD /* NutritionInsightTagView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B592804B2D9A3BD4009F1BAD /* NutritionInsightTagView.swift */; };
@@ -21,9 +22,9 @@
 		B59280542D9A6A58009F1BAD /* AddFoodItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59280532D9A6A4F009F1BAD /* AddFoodItemView.swift */; };
 		B592805E2D9A77CC009F1BAD /* NutritionViewModel2.swift in Sources */ = {isa = PBXBuildFile; fileRef = B592805D2D9A77B6009F1BAD /* NutritionViewModel2.swift */; };
 		B59280602D9A8132009F1BAD /* NutritionTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B592805F2D9A8132009F1BAD /* NutritionTypes.swift */; };
+		B59ED0632DB4975A007C54FE /* SwiftOpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = B59ED0622DB4975A007C54FE /* SwiftOpenAI */; };
 		B5AE12B92D97B4AE00204D95 /* APIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12B82D97B4A300204D95 /* APIConstants.swift */; };
 		B5AE12BB2D97B4E100204D95 /* APIResponseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12BA2D97B4D500204D95 /* APIResponseModels.swift */; };
-		B5AE12BD2D97B52700204D95 /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12BC2D97B51F00204D95 /* VisionService.swift */; };
 		B5AE12BF2D97B54C00204D95 /* NutritionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12BE2D97B54500204D95 /* NutritionService.swift */; };
 		B5AE12C12D97B57B00204D95 /* NutritionScoreCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12C02D97B57100204D95 /* NutritionScoreCalculator.swift */; };
 		B5AE12C32D97C18400204D95 /* FoodDetectionResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AE12C22D97C17100204D95 /* FoodDetectionResultView.swift */; };
@@ -88,6 +89,7 @@
 		B533D66B2DACD7AB001D735D /* TagGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagGridView.swift; sourceTree = "<group>"; };
 		B533D66D2DACD807001D735D /* YesNoButtonsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YesNoButtonsView.swift; sourceTree = "<group>"; };
 		B533D66F2DACD817001D735D /* TextInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInputView.swift; sourceTree = "<group>"; };
+		B533D6742DB484E9001D735D /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
 		B552442E2D92747E003EEAC9 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		B552442F2D92747E003EEAC9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B55244302D92747E003EEAC9 /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
@@ -136,7 +138,6 @@
 		B592805F2D9A8132009F1BAD /* NutritionTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionTypes.swift; sourceTree = "<group>"; };
 		B5AE12B82D97B4A300204D95 /* APIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConstants.swift; sourceTree = "<group>"; };
 		B5AE12BA2D97B4D500204D95 /* APIResponseModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIResponseModels.swift; sourceTree = "<group>"; };
-		B5AE12BC2D97B51F00204D95 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
 		B5AE12BE2D97B54500204D95 /* NutritionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionService.swift; sourceTree = "<group>"; };
 		B5AE12C02D97B57100204D95 /* NutritionScoreCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionScoreCalculator.swift; sourceTree = "<group>"; };
 		B5AE12C22D97C17100204D95 /* FoodDetectionResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDetectionResultView.swift; sourceTree = "<group>"; };
@@ -167,6 +168,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B59ED0632DB4975A007C54FE /* SwiftOpenAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -258,10 +260,10 @@
 		B55284282D9376D900F215D6 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B533D6742DB484E9001D735D /* OpenAIService.swift */,
 				B5C44AE62D9BB5B40052A4B3 /* CloudKitSyncManager.swift */,
 				B5AE12C02D97B57100204D95 /* NutritionScoreCalculator.swift */,
 				B5AE12BE2D97B54500204D95 /* NutritionService.swift */,
-				B5AE12BC2D97B51F00204D95 /* VisionService.swift */,
 				B5E331792D970D15009A96F6 /* CameraManager.swift */,
 				B5E331772D970CC8009A96F6 /* aiFoodAnalysis.swift */,
 				B5CB52C42D93C44F009DC977 /* CloudKitManager.swift */,
@@ -394,6 +396,7 @@
 			);
 			name = Louie;
 			packageProductDependencies = (
+				B59ED0622DB4975A007C54FE /* SwiftOpenAI */,
 			);
 			productName = Louie;
 			productReference = B5E3318A2D972645009A96F6 /* Louie.app */;
@@ -423,6 +426,9 @@
 			);
 			mainGroup = B52DF4BC2D7D47C2002D19E4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B59ED0612DB4975A007C54FE /* XCRemoteSwiftPackageReference "SwiftOpenAI" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B52DF4C62D7D47C2002D19E4 /* Products */;
 			projectDirPath = "";
@@ -458,6 +464,7 @@
 				B5E331A92D972712009A96F6 /* AchievementsPopup.swift in Sources */,
 				B5E331B42D972752009A96F6 /* MonthSelector.swift in Sources */,
 				B5E331BD2D97277D009A96F6 /* ModularContentView.swift in Sources */,
+				B533D6752DB484F0001D735D /* OpenAIService.swift in Sources */,
 				B5AE12C72D97C1B800204D95 /* FoodLogConfirmationView.swift in Sources */,
 				B5AE12BF2D97B54C00204D95 /* NutritionService.swift in Sources */,
 				B5E331C42D9727FD009A96F6 /* LouieApp.swift in Sources */,
@@ -469,7 +476,6 @@
 				B592805E2D9A77CC009F1BAD /* NutritionViewModel2.swift in Sources */,
 				B5E331AD2D972726009A96F6 /* HabitCalendarView.swift in Sources */,
 				B5E3319D2D9726AC009A96F6 /* HabitViewModel.swift in Sources */,
-				B5AE12BD2D97B52700204D95 /* VisionService.swift in Sources */,
 				B5E3319E2D9726B3009A96F6 /* Workout.swift in Sources */,
 				B5E331AE2D97272C009A96F6 /* HabitCardView.swift in Sources */,
 				B533D6682DACD6F7001D735D /* RatingsSliderView.swift in Sources */,
@@ -727,6 +733,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B59ED0612DB4975A007C54FE /* XCRemoteSwiftPackageReference "SwiftOpenAI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jamesrochabrun/SwiftOpenAI.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B59ED0622DB4975A007C54FE /* SwiftOpenAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B59ED0612DB4975A007C54FE /* XCRemoteSwiftPackageReference "SwiftOpenAI" */;
+			productName = SwiftOpenAI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B52DF4BD2D7D47C2002D19E4 /* Project object */;
 }
