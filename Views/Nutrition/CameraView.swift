@@ -20,6 +20,8 @@ struct CameraView: View {
     @State private var alertMessage = ""
     @State private var showResultsView = false
     @State private var detectedLabels: [LabelAnnotation] = []
+    @State private var analysisResult: MealEntry? = nil
+    @State private var currentMealEntry: MealEntry? = nil
     @State private var analyzedImage: UIImage?
     @State private var useAnimatedFlow = true
     @State private var isHorizontalScanActive = false
@@ -211,15 +213,21 @@ struct CameraView: View {
             presentationMode.wrappedValue.dismiss()
         }) {
             if useAnimatedFlow {
-                // Use the new animated UI flow
+                // Use the new animated UI flow with the current meal entry
                 NutritionAnimatedFlowView(
                     viewModel: viewModel,
                     showView: $showResultsView,
                     foodImage: analyzedImage ?? UIImage(),
                     detectedLabels: detectedLabels.map { 
                         FoodLabelAnnotation(description: $0.description, confidence: Double($0.score))
-                    }
+                    },
+                    mealEntry: currentMealEntry // Use direct reference
                 )
+                .onAppear {
+                    // Add debug prints here instead where they're allowed
+                    print("SHOWING VIEW: analysisResult is \(self.analysisResult != nil ? "SET with \(self.analysisResult!.foods.count) foods" : "NIL")")
+                    print("SHOWING VIEW: currentMealEntry is \(self.currentMealEntry != nil ? "SET with \(self.currentMealEntry!.foods.count) foods" : "NIL")")
+                }
             } else {
                 // Use the standard UI flow
                 FoodDetectionResultView(
@@ -227,6 +235,10 @@ struct CameraView: View {
                     detectedLabels: detectedLabels,
                     foodImage: analyzedImage ?? UIImage()
                 )
+                .onAppear {
+                    print("SHOWING VIEW: analysisResult is \(self.analysisResult != nil ? "SET with \(self.analysisResult!.foods.count) foods" : "NIL")")
+                    print("SHOWING VIEW: currentMealEntry is \(self.currentMealEntry != nil ? "SET with \(self.currentMealEntry!.foods.count) foods" : "NIL")")
+                }
             }
         }
     }
@@ -284,49 +296,110 @@ struct CameraView: View {
         // After horizontal scan completes, start vertical scan
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             isHorizontalScanActive = false
-            isVerticalScanActive = true
+            isVerticalScanActive   = true
             withAnimation(.linear(duration: 1.5)) {
                 verticalScanProgress = 1.0
             }
         }
         
         // Process image on background thread with high priority
-        DispatchQueue.global(qos: .userInteractive).async {
-            // Pre-process image (can potentially be removed if OpenAIService handles it robustly)
-            // For now, keep it to ensure smaller image is sent initially.
-            let processedImage = self.optimizeImageForAnalysis(image)
-
-            // Use AIFoodAnalysisService to analyze the image and get a MealEntry
-            AIFoodAnalysisService.shared.analyzeFoodImage(processedImage) { result in
+        // Create a DispatchWorkItem to encapsulate the analysis logic
+        let analysisWorkItem = DispatchWorkItem {
+            // Ensure image is available
+            guard let imageToAnalyze = self.cameraManager.image else { 
+                print("Error: Image not available for analysis work item.")
+                // Optionally handle this state, e.g., reset UI
                 DispatchQueue.main.async {
-                    // Calculate time elapsed since animation started
-                    let elapsedTime = Date().timeIntervalSince1970 - self.animationStartTime
-                    let remainingAnimationTime = max(0, 3.0 - elapsedTime)
+                     self.isAnalyzing = false
+                     self.isCaptured = false
+                     self.cameraManager.setupAndStartSession() // Restart session if needed
+                }
+                return
+            }
 
-                    // Wait for animations to complete before showing results
-                    DispatchQueue.main.asyncAfter(deadline: .now() + remainingAnimationTime) {
-                        self.isAnalyzing = false
-                        self.isVerticalScanActive = false
-                        self.horizontalScanProgress = 0.0
-                        self.verticalScanProgress = 0.0
+            // Pre‑process image
+            let processedImage = self.optimizeImageForAnalysis(imageToAnalyze)
 
-                        switch result {
-                        case .success(let mealEntry):
-                            // Store the successful MealEntry
-                            // We need a state variable to hold this, e.g., @State private var processedMealEntry: MealEntry?
-                            // self.processedMealEntry = mealEntry // <-- Add state variable and assign here
-                            print("Analysis successful. Meal Entry: \(mealEntry.foods.map { $0.name }.joined(separator: ", "))")
-                            // TODO: Navigate to or present a results view passing the mealEntry
-                            self.showResultsView = true // This likely needs to trigger navigation/presentation with the mealEntry data
+            // Analyze with OpenAI
+            LouieOpenAIService.shared.analyzeImageWithGPT4o(processedImage) { result in
+                DispatchQueue.main.async { // Ensure UI updates are on main thread
+                    // Stop scan animations regardless of result
+                    self.isHorizontalScanActive = false
+                    self.isVerticalScanActive   = false
+                    self.isAnalyzing = false
+                    self.horizontalScanProgress = 0.0 // Reset progress
+                    self.verticalScanProgress = 0.0   // Reset progress
 
-                        case .failure(let error):
-                            // Handle specific APIError cases if needed
-                            self.alertMessage = "Food analysis failed: \(error.localizedDescription)" // Use localizedDescription for APIError
-                            self.showAlert = true
+                    // Determine delay and action based on result
+                    let delay: TimeInterval
+                    let action: () -> Void
+                    
+                    switch result {
+                    case .success(let mealEntry):
+                        // Calculate delay
+                        let elapsedTime = Date().timeIntervalSince1970 - self.animationStartTime
+                        let minimumDuration = 3.0 // Total animation time (1.5s + 1.5s)
+                        delay = max(0, minimumDuration - elapsedTime)
+                        
+                        // Define success action
+                        action = {
+                            // Store in both state variables to be safe
+                            self.analysisResult = mealEntry
+                            self.currentMealEntry = mealEntry
+                            
+                            // Debug: Detailed dump of MealEntry
+                            print("DETAILED MEAL ENTRY DUMP:")
+                            print("  - ID: \(mealEntry.id)")
+                            print("  - Timestamp: \(mealEntry.timestamp)")
+                            print("  - Food count: \(mealEntry.foods.count)")
+                            print("  - Has image data: \(mealEntry.imageData != nil)")
+                            print("  - Foods:")
+                            for (index, food) in mealEntry.foods.enumerated() {
+                                print("    \(index+1). \(food.name) (Category: \(food.category.rawValue))")
+                            }
+                            
+                            // Debug: Print MealEntry food count
+                            print("SUCCESS ACTION: Setting analysisResult with \(mealEntry.foods.count) foods")
+                            
+                            self.detectedLabels = mealEntry.foods.map { foodItem in
+                                LabelAnnotation(description: foodItem.name, score: 1.0, topicality: 1.0)
+                            }
+                            self.showResultsView = true
+                            let successGenerator = UINotificationFeedbackGenerator()
+                            successGenerator.notificationOccurred(.success)
                         }
+                        
+                    case .failure(let error):
+                        // Calculate delay
+                        let elapsedTime = Date().timeIntervalSince1970 - self.animationStartTime
+                        let minimumDuration = 3.0 // Total animation time (1.5s + 1.5s)
+                        delay = max(0, minimumDuration - elapsedTime)
+                        
+                        // Define failure action
+                        action = {
+                            self.alertMessage = "Analysis failed: \(error.localizedDescription)"
+                            self.showAlert = true
+                            let errorGenerator = UINotificationFeedbackGenerator()
+                            errorGenerator.notificationOccurred(.error)
+                            self.isCaptured = false
+                            self.analysisResult = nil
+                            self.detectedLabels = []
+                            self.cameraManager.image = nil
+                            self.cameraManager.setupAndStartSession()
+                        }
+                    }
+
+                    // Execute the determined action after the calculated delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                        action()
                     }
                 }
             }
+        }
+        
+        // Schedule the work item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            analysisWorkItem.perform()
         }
     }
     

@@ -57,18 +57,45 @@ struct NutritionAnimatedFlowView: View {
     @State private var detectedFoods: [FoodItem] = []
     
     let foodImage: UIImage
+    let mealEntry: MealEntry? // Add optional MealEntry parameter
     
-    // Initialize with detected labels
-    init(viewModel: NutritionViewModel2, showView: Binding<Bool>, foodImage: UIImage, detectedLabels: [FoodLabelAnnotation]) {
+    // Initialize with detected labels and optional MealEntry
+    init(viewModel: NutritionViewModel2, showView: Binding<Bool>, foodImage: UIImage, detectedLabels: [FoodLabelAnnotation], mealEntry: MealEntry? = nil) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
         self._showView = Binding(projectedValue: showView)
         self.foodImage = foodImage
+        self.mealEntry = mealEntry
+        
+        // Debug: Print whether mealEntry was received
+        print("INITIALIZER DEBUG:")
+        print("  - MealEntry is \(mealEntry != nil ? "received" : "NIL")")
+        if let entry = mealEntry {
+            print("  - MealEntry ID: \(entry.id)")
+            print("  - MealEntry has \(entry.foods.count) foods")
+            for (index, food) in entry.foods.enumerated() {
+                print("    \(index+1). \(food.name) (Category: \(food.category.rawValue))")
+            }
+        }
         
         // Pre-populate with detected labels
         self._detectedLabels = State(initialValue: detectedLabels)
         
+        // Debug: Print whether mealEntry was received
+        print("NutritionAnimatedFlowView init: mealEntry is \(mealEntry != nil ? "received with \(mealEntry!.foods.count) foods" : "NIL")")
+        
         // Set initial state for detected foods
-        self._detectedFoods = State(initialValue: [])
+        // If we have a meal entry with foods, use those directly
+        if let entry = mealEntry, !entry.foods.isEmpty {
+            print("NutritionAnimatedFlowView init: Using \(entry.foods.count) foods from MealEntry")
+            for food in entry.foods {
+                print("   - \(food.name) (Category: \(food.category.rawValue))")
+            }
+            self._detectedFoods = State(initialValue: entry.foods)
+            print("AFTER INIT: detectedFoods initialized with \(entry.foods.count) items")
+        } else {
+            self._detectedFoods = State(initialValue: [])
+            print("AFTER INIT: detectedFoods initialized with 0 items (empty array)")
+        }
         
         // Create image picker model with the provided image
         let imageModel = ImagePickerModel(image: foodImage)
@@ -77,6 +104,12 @@ struct NutritionAnimatedFlowView: View {
     
     // Convert detected labels to food items
     private func processFoodLabels() {
+        // If we already have food items from a MealEntry, don't create fallbacks
+        if !detectedFoods.isEmpty {
+            print("Using \(detectedFoods.count) foods from MealEntry")
+            return
+        }
+        
         // Create fallback food items
         createFallbackFoodItems(from: self.detectedLabels)
     }
@@ -102,8 +135,13 @@ struct NutritionAnimatedFlowView: View {
             items.append(foodItem)
         }
         
+        print("BEFORE setting detectedFoods: \(self.detectedFoods.count) items")
         self.detectedFoods = items
-        print("Created \(items.count) fallback food items")
+        print("AFTER setting detectedFoods: \(self.detectedFoods.count) items")
+        print("Food items created:")
+        for item in items {
+            print("- \(item.name) (Category: \(item.category.rawValue), Calories: \(item.calories))")
+        }
     }
     
     // Helper function to guess food category based on name
@@ -157,6 +195,12 @@ struct NutritionAnimatedFlowView: View {
                 
                 Spacer()
                 
+                // Debug: Print food count before passing to SmartListDetectionView
+                Text("DEBUG: \(detectedFoods.count) foods available")
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .padding(.top, -20)
+                
                 // Main detection view
                 SmartListDetectionView(
                     viewModel: viewModel,
@@ -170,12 +214,20 @@ struct NutritionAnimatedFlowView: View {
             }
         }
         .onAppear {
+            // Debug: Print food count on appearance
+            print("NutritionAnimatedFlowView onAppear: detectedFoods count = \(detectedFoods.count)")
+            if let entry = mealEntry {
+                print("NutritionAnimatedFlowView onAppear: mealEntry has \(entry.foods.count) foods")
+            }
+            
             // Process food labels immediately without showing loading
             if detectedFoods.isEmpty {
+                print("NutritionAnimatedFlowView onAppear: No food items, creating fallbacks")
                 processFoodLabels()
                 // Set showFoods to true immediately
                 showFoods = true
             } else {
+                print("NutritionAnimatedFlowView onAppear: Using existing \(detectedFoods.count) foods")
                 showFoods = true
             }
         }

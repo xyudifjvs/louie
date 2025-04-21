@@ -28,9 +28,9 @@ public enum NutritionServiceInsightType: String, Codable {
 /// Most core functionality related to image analysis is DEPRECATED.
 class NutritionService {
     static let shared = NutritionService()
-
+    
     private init() {}
-
+    
     // MARK: - DEPRECATED / REMOVED NutritionIX Functions -
 
     // func getNutritionInfo(...) - Removed
@@ -43,7 +43,7 @@ class NutritionService {
     // public func processDetectedFoods(...) - Removed
 
     // MARK: - Potentially Reusable / Refactorable Functions -
-
+    
     /// Lookup nutrition information for a single food item (useful for manually added items)
     /// - Parameters:
     ///   - foodName: The name of the food to look up
@@ -58,22 +58,22 @@ class NutritionService {
         }
         // --- End of replaced body ---
     }
-
+    
     /// Returns a list of nutrition insights for the specified food items
     /// - NOTE: This uses placeholder logic and might be replaced by insights from OpenAI.
     public func getNutritionalInsights(for foodLabels: [String]) -> [NutritionInsight] {
         // This would normally call an AI service or use more sophisticated logic.
         print("Generating placeholder nutritional insights.")
         let insights = generatePlaceholderInsights(for: foodLabels)
-
+        
         // Convert service insights to app-wide format
         return insights.map { convertToAppInsight($0) }
     }
-
+    
     // Convert from service-specific insights to app-wide insights
     private func convertToAppInsight(_ serviceInsight: ServiceInsight) -> NutritionInsight {
         let insightType: NutritionInsight.InsightType
-
+        
         switch serviceInsight.insightType {
         case .positive:
             insightType = .positive
@@ -82,7 +82,7 @@ class NutritionService {
         case .warning:
             insightType = .negative // Map warning to negative for the app model
         }
-
+        
         return NutritionInsight(
             title: serviceInsight.insightText,
             description: serviceInsight.detail ?? "",
@@ -90,7 +90,7 @@ class NutritionService {
             type: insightType
         )
     }
-
+    
     // Helper to get SFSymbol name for insight type
     private func iconForInsightType(_ type: NutritionInsight.InsightType) -> String {
         switch type {
@@ -104,7 +104,7 @@ class NutritionService {
             return "lightbulb"
         }
     }
-
+    
     // Internal struct for placeholder insights
     private struct ServiceInsight {
         let insightText: String
@@ -117,7 +117,7 @@ class NutritionService {
     private func generatePlaceholderInsights(for foodLabels: [String]) -> [ServiceInsight] {
         var insights: [ServiceInsight] = []
         let uniqueFoodLabels = Set(foodLabels.map { $0.lowercased() })
-
+        
         // Category-based insights (Simplified example - keeping existing complex logic)
         let proteinSources = uniqueFoodLabels.filter { label in ["egg", "chicken", "beef", "salmon", "tuna", "tofu", "beans"].contains { label.contains($0) } }
         let vegetables = uniqueFoodLabels.filter { label in ["broccoli", "spinach", "kale", "carrot", "salad"].contains { label.contains($0) } }

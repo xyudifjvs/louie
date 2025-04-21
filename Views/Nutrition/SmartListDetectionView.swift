@@ -84,6 +84,12 @@ struct SmartListDetectionView: View {
                 .edgesIgnoringSafeArea(.all)
                 
                 VStack(spacing: 16) {
+                    // Debug: Print food count in SmartListDetectionView
+                    Text("SmartList DEBUG: \(foodItems.count) foods")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.7))
+                        .padding(.vertical, 4)
+                
                     // Top portion - Image Card with optional score stamp
                     imageCard()
                     
@@ -98,6 +104,12 @@ struct SmartListDetectionView: View {
                 .padding(.bottom, 20)
             }
             .onAppear {
+                // Debug: Print food items on appear
+                print("SmartListDetectionView onAppear: \(foodItems.count) food items received")
+                for (index, item) in foodItems.enumerated() {
+                    print("   \(index+1). \(item.name) (Category: \(item.category.rawValue))")
+                }
+                
                 // Calculate totals on appear just in case
                 calculateTotals()
             }
@@ -230,7 +242,9 @@ struct SmartListDetectionView: View {
     
     // MARK: - Individual Category Card
     private func categoryCard(for category: FoodCategory, index: Int, width: CGFloat) -> some View {
+        // Debug: Print each category's items count when drawing the card
         let categoryItems = foodItems.filter { $0.category == category }
+        print("Drawing \(category.rawValue) card with \(categoryItems.count) items")
         let categoryInfo = getCategoryInfo(category)
         
         return VStack(alignment: .leading, spacing: 8) {
